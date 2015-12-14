@@ -12,14 +12,18 @@ namespace Sitecore.Pathfinder.Projects
 {
     public interface IProject
     {
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
+        IEnumerable<Item> Items { get; }
+
+        [NotNull, ItemNotNull]
+        IEnumerable<Template> Templates { get; }
+
+        [NotNull, ItemNotNull]
         ICollection<Diagnostic> Diagnostics { get; }
 
         long Ducats { get; set; }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         IEnumerable<File> Files { get; }
 
         [NotNull]
@@ -28,26 +32,16 @@ namespace Sitecore.Pathfinder.Projects
         bool HasErrors { get; }
 
         [NotNull]
-        [ItemNotNull]
-        IEnumerable<IProjectItem> ProjectItems { get; }
-
-        [NotNull]
-        [ItemNotNull]
-        IEnumerable<Item> Items { get; }
-
-        [NotNull]
         ProjectOptions Options { get; }
+
+        [NotNull, ItemNotNull]
+        IEnumerable<IProjectItem> ProjectItems { get; }
 
         [NotNull]
         string ProjectUniqueId { get; }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         ICollection<ISourceFile> SourceFiles { get; }
-
-        [NotNull]
-        [ItemNotNull]
-        IEnumerable<Template> Templates { get; }
 
         [NotNull]
         IProject Add([NotNull] string sourceFileName);
@@ -59,19 +53,24 @@ namespace Sitecore.Pathfinder.Projects
         IProject Compile();
 
         [CanBeNull]
-        IProjectItem FindQualifiedItem([NotNull] string qualifiedName);
+        T FindQualifiedItem<T>([NotNull] string qualifiedName) where T : IProjectItem;
 
         [CanBeNull]
-        IProjectItem FindQualifiedItem([NotNull] string databaseName, [NotNull] string qualifiedName);
+        T FindQualifiedItem<T>([NotNull] string databaseName, [NotNull] string qualifiedName) where T : IProjectItem;
 
         [CanBeNull]
-        IProjectItem FindQualifiedItem([NotNull] ProjectItemUri uri);
+        T FindQualifiedItem<T>([NotNull] ProjectItemUri uri) where T : IProjectItem;
 
         [NotNull]
         Database GetDatabase([NotNull] string databaseName);
 
+        [NotNull, ItemNotNull]
+        IEnumerable<Item> GetItems([NotNull] string databaseName);
+
         [NotNull]
-        IProject Load([NotNull] ProjectOptions projectOptions, [NotNull] [ItemNotNull] IEnumerable<string> sourceFileNames);
+        IProject Load([NotNull] ProjectOptions projectOptions, [NotNull, ItemNotNull] IEnumerable<string> sourceFileNames);
+
+        event ProjectChangedEventHandler ProjectChanged;
 
         void Remove([NotNull] IProjectItem projectItem);
 
@@ -79,5 +78,8 @@ namespace Sitecore.Pathfinder.Projects
 
         [NotNull]
         IProject SaveChanges();
+
+        [NotNull, ItemNotNull]
+        IEnumerable<Template> GetTemplates([NotNull] string databaseName);
     }
 }

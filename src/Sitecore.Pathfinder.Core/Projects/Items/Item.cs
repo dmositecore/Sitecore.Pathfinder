@@ -5,8 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Extensions;
+using Sitecore.Pathfinder.IO;
 using Sitecore.Pathfinder.Projects.Templates;
 using Sitecore.Pathfinder.Snapshots;
+using Sitecore.Pathfinder.Xml.XPath;
 
 namespace Sitecore.Pathfinder.Projects.Items
 {
@@ -17,18 +19,22 @@ namespace Sitecore.Pathfinder.Projects.Items
         MatchUsingSourceFile
     }
 
-    public class Item : ItemBase
+    public class Item : DatabaseProjectItem, IXPathItem
     {
         [NotNull]
         public static readonly Item Empty = new Item(Projects.Project.Empty, TextNode.Empty, new Guid("{935B8D6C-D25A-48B8-8167-2C0443D77027}"), "emptydatabase", string.Empty, string.Empty, string.Empty);
 
-        [CanBeNull]
-        [ItemNotNull]
+        [CanBeNull, ItemNotNull]
         private ChildrenCollection _children;
 
-        [CanBeNull]
-        [ItemNotNull]
+        [CanBeNull, ItemNotNull]
         private FieldCollection _fields;
+
+        [CanBeNull]
+        private Item _parent;
+
+        [CanBeNull]
+        private string _parentPath;
 
         [CanBeNull]
         private ItemPublishing _publishing;
@@ -41,16 +47,13 @@ namespace Sitecore.Pathfinder.Projects.Items
             TemplateIdOrPath = templateIdOrPath;
         }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         public ChildrenCollection Children => _children ?? (_children = new ChildrenCollection(this));
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         public FieldCollection Fields => _fields ?? (_fields = new FieldCollection(this));
 
-        [NotNull]
-        public string this[[NotNull] string fieldName]
+        public string this[string fieldName]
         {
             get
             {
@@ -82,23 +85,15 @@ namespace Sitecore.Pathfinder.Projects.Items
             }
         }
 
-        [NotNull]
-        public string LayoutHtmlFile
-        {
-            get { return LayoutHtmlFileProperty.GetValue(); }
-            set { LayoutHtmlFileProperty.SetValue(value); }
-        }
-
-        [NotNull]
-        public SourceProperty<string> LayoutHtmlFileProperty { get; } = new SourceProperty<string>("Layout.HtmlFile", string.Empty);
-
         public MergingMatch MergingMatch { get; set; }
 
         public bool OverwriteWhenMerging { get; set; }
 
-        [Obsolete("Use GetParent() instead", false)]
-        [CanBeNull]
+        [CanBeNull, Obsolete("Use GetParent() instead", false)]
         public Item Parent => GetParent();
+
+        [NotNull]
+        public string ParentItemPath => _parentPath ?? (_parentPath = PathHelper.GetItemParentPath(ItemIdOrPath));
 
         [NotNull]
         public ItemPublishing Publishing => _publishing ?? (_publishing = new ItemPublishing(this));
@@ -108,14 +103,13 @@ namespace Sitecore.Pathfinder.Projects.Items
         {
             get
             {
-                // todo: dangereous cache - make template lookup faster im the project
                 if (_template == null || _template == Template.Empty)
                 {
                     var templateIdOrPath = TemplateIdOrPath;
 
                     if (templateIdOrPath.Contains('/') || templateIdOrPath.Contains('{'))
                     {
-                        _template = Project.FindQualifiedItem(DatabaseName, templateIdOrPath) as Template;
+                        _template = Project.FindQualifiedItem<Template>(DatabaseName, templateIdOrPath);
                     }
                     else
                     {
@@ -123,19 +117,13 @@ namespace Sitecore.Pathfinder.Projects.Items
                         var templates = Project.ProjectItems.OfType<Template>().Where(t => t.ShortName == templateIdOrPath && string.Equals(t.DatabaseName, DatabaseName, StringComparison.OrdinalIgnoreCase)).ToList();
                         _template = templates.Count == 1 ? templates.First() : null;
                     }
-
-                    if (_template == null)
-                    {
-                        _template = Template.Empty;
-                    }
                 }
 
                 return _template ?? Template.Empty;
             }
         }
 
-        [NotNull]
-        [Obsolete("Use Template.Uri.Guid instead")]
+        [NotNull, Obsolete("Use Template.Uri.Guid instead")]
         public ID TemplateID => Template.ID;
 
         [NotNull]
@@ -145,15 +133,26 @@ namespace Sitecore.Pathfinder.Projects.Items
             set
             {
                 TemplateIdOrPathProperty.SetValue(value);
-                _template = Template.Empty;
+                _template = null;
             }
         }
 
         [NotNull]
         public SourceProperty<string> TemplateIdOrPathProperty { get; } = new SourceProperty<string>("Template", string.Empty, SourcePropertyFlags.IsQualified);
 
-        [NotNull]
         public string TemplateName => Template.ItemName;
+
+        string IXPathItem.ItemId => Uri.Guid.Format();
+
+        string IXPathItem.ItemPath => ItemIdOrPath;
+
+        string IXPathItem.TemplateId => Template.Uri.Guid.Format();
+
+        [NotNull, ItemNotNull]
+        public virtual IEnumerable<Item> GetChildren()
+        {
+            return Project.GetItems(DatabaseName).Where(i => string.Equals(i.ParentItemPath, ItemIdOrPath, StringComparison.OrdinalIgnoreCase));
+        }
 
         [NotNull]
         public string GetDisplayName([NotNull] string language, int version)
@@ -162,8 +161,7 @@ namespace Sitecore.Pathfinder.Projects.Items
             return string.IsNullOrEmpty(displayName) ? ItemName : displayName;
         }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         public IEnumerable<string> GetLanguages()
         {
             return Fields.Where(f => !string.IsNullOrEmpty(f.Language)).Select(f => f.Language).Distinct();
@@ -172,18 +170,10 @@ namespace Sitecore.Pathfinder.Projects.Items
         [CanBeNull]
         public Item GetParent()
         {
-            var n = ItemIdOrPath.LastIndexOf('/');
-            if (n < 0)
-            {
-                return null;
-            }
-
-            var parentItemPath = ItemIdOrPath.Left(n);
-            return Project.FindQualifiedItem(parentItemPath) as Item;
+            return _parent ?? (_parent = Project.FindQualifiedItem<Item>(DatabaseName, ParentItemPath));
         }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         public IEnumerable<int> GetVersions([NotNull] string language)
         {
             return Fields.Where(f => string.Equals(f.Language, language, StringComparison.OrdinalIgnoreCase) && f.Version != 0).Select(f => f.Version).Distinct();
@@ -199,10 +189,7 @@ namespace Sitecore.Pathfinder.Projects.Items
             base.Merge(newProjectItem, overwrite);
 
             var newItem = newProjectItem as Item;
-            if (newItem == null)
-            {
-                return;
-            }
+            Assert.Cast(newItem, nameof(newItem));
 
             if (!string.IsNullOrEmpty(newItem.TemplateIdOrPath))
             {
@@ -232,6 +219,59 @@ namespace Sitecore.Pathfinder.Projects.Items
 
                 field.ValueProperty.SetValue(newField.ValueProperty, SetValueOptions.DisableUpdates);
             }
+        }
+
+        protected override void OnProjectChanged(object sender)
+        {
+            _parent = null;
+            _template = null;
+        }
+
+        IEnumerable<IXPathItem> IXPathItem.GetChildren()
+        {
+            var childNames = new HashSet<string>();
+
+            foreach (var child in GetChildren())
+            {
+                yield return child;
+                childNames.Add(child.ItemName);
+            }
+
+            // yield virtual paths that are used by items deeper in the hierachy - tricky, tricky
+            var itemIdOrPath = ItemIdOrPath + "/";
+            foreach (var descendent in Project.GetItems(DatabaseName).Where(i => i.ItemIdOrPath.StartsWith(itemIdOrPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                var n = descendent.ItemIdOrPath.IndexOf('/', itemIdOrPath.Length);
+                if (n < 0)
+                {
+                    continue;
+                }
+
+                var childName = descendent.ItemIdOrPath.Mid(itemIdOrPath.Length, n - itemIdOrPath.Length);
+                if (childNames.Contains(childName, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                yield return new XPathItem(Project, DatabaseName, itemIdOrPath + childName);
+                childNames.Add(childName);
+            }
+        }
+
+        IXPathItem IXPathItem.GetParent()
+        {
+            if (string.IsNullOrEmpty(ParentItemPath))
+            {
+                return null;
+            }
+
+            var parent = GetParent();
+            if (parent != null)
+            {
+                return parent;
+            }
+
+            return new XPathItem(Project, DatabaseName, ParentItemPath);
         }
     }
 }

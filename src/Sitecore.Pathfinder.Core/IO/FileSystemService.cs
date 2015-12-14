@@ -97,6 +97,23 @@ namespace Sitecore.Pathfinder.IO
             return File.GetLastWriteTimeUtc(sourceFileName);
         }
 
+        public string GetUniqueFileName(string fileName)
+        {
+            var result = fileName;
+            var index = 0;
+
+            var baseFileName = Path.GetDirectoryName(fileName) + "\\" + Path.GetFileNameWithoutExtension(fileName) + " ";
+            var extension = Path.GetExtension(fileName);
+
+            while (FileExists(result))
+            {
+                result = baseFileName + index + extension;
+                index++;
+            }
+
+            return result;
+        }
+
         public virtual void Mirror(string sourceDirectory, string destinationDirectory)
         {
             var proc = new Process
@@ -155,6 +172,37 @@ namespace Sitecore.Pathfinder.IO
                     }
                 }
             }
+        }
+
+        public bool CopyIfNewer(string sourceFileName, string targetFileName)
+        {
+            if (!FileExists(targetFileName))
+            {
+                File.Copy(sourceFileName, targetFileName);
+                return true;
+            }
+
+            if (string.Equals(Path.GetExtension(sourceFileName), ".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                var sourceVersion = new Version(FileVersionInfo.GetVersionInfo(sourceFileName).FileVersion);
+                var targetVersion = new Version(FileVersionInfo.GetVersionInfo(targetFileName).FileVersion);
+                if (targetVersion < sourceVersion)
+                {
+                    File.Copy(sourceFileName, targetFileName, true);
+                    return true;
+                }
+            }
+
+            // update file if length or last write time has changed
+            var sourceFileInfo = new FileInfo(sourceFileName);
+            var targetFileInfo = new FileInfo(targetFileName);
+            if (sourceFileInfo.Length != targetFileInfo.Length || sourceFileInfo.LastWriteTimeUtc > targetFileInfo.LastWriteTimeUtc)
+            {
+                File.Copy(sourceFileName, targetFileName, true);
+                return true;
+            }
+
+            return false;
         }
 
         public virtual void WriteAllText(string fileName, string contents)

@@ -1,5 +1,17 @@
-Version next
+Version Next
 ============
+* Add: Project changed event for invalidating caches (2015-12-01)
+* Add: Project roles - enables/disabled checkers and conventions (2015-12-01)
+* Add: Rules Engine (2015-12-01)
+* Add: Convention checker (2015-12-01)
+* Add: XPath expressions (2015-12-03)
+* Add: PathMapper API (2015-12-07)
+* Add: Serializing Data Provider (2015-12-09)
+* Add: Stricter checking using build-project:schema setting (2015-12-12)
+* Add: Renamed /content directory to /items to avoid conflict with ASP.NET 5 (2015-12-12)
+
+Version 0.5.0
+=============
 * Add: Support for Include files (2015-10-21)
 * Add: Pack and install multiple NuGet packages (2015-10-29) - Todd Mitchell
 * Add: Support for user config files (scconfig.json.user) (2015-10-29) - Alistair Denneys
@@ -22,4 +34,4 @@ Version next
 * Removed: run-unittests and generate-unittests tasks. These have been replaced with generate-code and T4 templates (2015-11-18)
 * Add: scc can now run scripts files (PowerShell, .cmd and -bat) (2015-11-19)
 * Add: Script files for installing FakeDb and NUnit-Runners (2015-11-19)
-* Add: import-website task for importing a website into a Pathfinder project (2015-11-)
+* Add: import-website task for importing a website into a Pathfinder project (2015-11-20)

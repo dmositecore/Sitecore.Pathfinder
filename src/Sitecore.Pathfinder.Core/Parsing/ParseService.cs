@@ -19,12 +19,13 @@ namespace Sitecore.Pathfinder.Parsing
     public class ParseService : IParseService
     {
         [ImportingConstructor]
-        public ParseService([NotNull] ICompositionService compositionService, [NotNull] IConfiguration configuration, [NotNull] IFactoryService factory, [NotNull] ISnapshotService snapshotService, [ImportMany] [NotNull] [ItemNotNull] IEnumerable<IParser> parsers)
+        public ParseService([NotNull] ICompositionService compositionService, [NotNull] IConfiguration configuration, [NotNull] IFactoryService factory, [NotNull] ISnapshotService snapshotService, [NotNull] IPathMapperService pathMapper, [ImportMany, NotNull, ItemNotNull] IEnumerable<IParser> parsers)
         {
             CompositionService = compositionService;
             Configuration = configuration;
             Factory = factory;
             SnapshotService = snapshotService;
+            PathMapper = pathMapper;
             Parsers = parsers;
         }
 
@@ -37,8 +38,7 @@ namespace Sitecore.Pathfinder.Parsing
         [NotNull]
         protected IFactoryService Factory { get; }
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         protected IEnumerable<IParser> Parsers { get; }
 
         [NotNull]
@@ -46,11 +46,16 @@ namespace Sitecore.Pathfinder.Parsing
 
         public virtual void Parse(IProject project, ISourceFile sourceFile)
         {
+            var pathMappingContext = new PathMappingContext(PathMapper);
+            pathMappingContext.Parse(project, sourceFile);
+
+            if (!pathMappingContext.IsMapped)
+            {
+                return;
+            }
+
             var itemName = PathHelper.GetItemName(sourceFile);
-
-            var fileContext = FileContext.GetFileContext(project, Configuration, sourceFile);
-
-            var filePath = fileContext.FilePath;
+            var filePath = pathMappingContext.FilePath;
             if (filePath.StartsWith("~/"))
             {
                 filePath = filePath.Mid(1);
@@ -73,11 +78,11 @@ namespace Sitecore.Pathfinder.Parsing
             };
 
             var snapshotParseContext = new SnapshotParseContext(SnapshotService, tokens, new Dictionary<string, List<ITextNode>>());
-
             var snapshot = SnapshotService.LoadSnapshot(snapshotParseContext, sourceFile);
 
-            var parseContext = Factory.ParseContext(project, snapshot);
+            var parseContext = Factory.ParseContext(project, snapshot, pathMappingContext);
 
+            var parsed = false;
             foreach (var parser in Parsers.OrderBy(p => p.Priority))
             {
                 try
@@ -85,13 +90,22 @@ namespace Sitecore.Pathfinder.Parsing
                     if (parser.CanParse(parseContext))
                     {
                         parser.Parse(parseContext);
+                        parsed = true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    parseContext.Trace.TraceError(Msg.P1013, ex.Message, sourceFile.AbsoluteFileName, TextSpan.Empty);
+                    parseContext.Trace.TraceError(Msg.P1013, ex.Message, sourceFile);
                 }
             }
+
+            if (!parsed)
+            {
+                parseContext.Trace.TraceWarning(Msg.P1024, "No parser found for file. If the file is a content file, add the file extension to the 'build-project:content-files' setting", sourceFile);
+            }
         }
+
+        [NotNull]
+        protected IPathMapperService PathMapper { get; }
     }
 }

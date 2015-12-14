@@ -57,7 +57,7 @@ namespace Sitecore.Pathfinder.Configuration
         FieldBuilder FieldBuilder();
 
         [NotNull]
-        ItemParseContext ItemParseContext([NotNull] IParseContext context, [NotNull] ItemParser itemParser, [NotNull] string databaseName, [NotNull] string parentItemPath, bool isExtern);
+        ItemParseContext ItemParseContext([NotNull] IParseContext context, [NotNull] ItemParser itemParser, [NotNull] string databaseName, [NotNull] string parentItemPath, bool isImport);
 
         [NotNull]
         LayoutReference LayoutReference([NotNull] IProjectItem projectItem, [NotNull] SourceProperty<string> layoutSourceProperty);
@@ -69,7 +69,7 @@ namespace Sitecore.Pathfinder.Configuration
         MediaFile MediaFile([NotNull] IProject project, [NotNull] ISnapshot snapshot, [NotNull] string databaseName, [NotNull] string itemName, [NotNull] string itemPath, [NotNull] string filePath);
 
         [NotNull]
-        IProject Project([NotNull] ProjectOptions projectOptions, [NotNull] [ItemNotNull] List<string> sourceFileNames);
+        IProject Project([NotNull] ProjectOptions projectOptions, [NotNull, ItemNotNull]  List<string> sourceFileNames);
 
         [NotNull]
         ProjectOptions ProjectOptions([NotNull] string projectDirectory, [NotNull] string databaseName);
@@ -92,6 +92,7 @@ namespace Sitecore.Pathfinder.Configuration
         [NotNull]
         ISourceFile SourceFile([NotNull] IFileSystemService fileSystem, [NotNull] string sourceFileName, [NotNull] string projectFileName);
 
+        // todo: swap guid and textnode parameters
         [NotNull]
         Template Template([NotNull] IProject project, Guid guid, [NotNull] ITextNode textNode, [NotNull] string databaseName, [NotNull] string itemName, [NotNull] string itemIdOrPath);
 
@@ -105,6 +106,6 @@ namespace Sitecore.Pathfinder.Configuration
         TextNode TextNode([NotNull] ISnapshot snapshot, TextSpan span, [NotNull] string name, [NotNull] string value);
 
         [NotNull]
-        IParseContext ParseContext([NotNull] IProject project, [NotNull] ISnapshot snapshot);
+        IParseContext ParseContext([NotNull] IProject project, [NotNull] ISnapshot snapshot, [NotNull] PathMappingContext pathMappingContext);
     }
 }

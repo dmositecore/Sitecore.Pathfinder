@@ -9,7 +9,6 @@ using Sitecore.Pathfinder.Checking;
 using Sitecore.Pathfinder.Configuration;
 using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Extensions;
-using Sitecore.Pathfinder.IO;
 
 namespace Sitecore.Pathfinder.Projects
 {
@@ -76,8 +75,8 @@ namespace Sitecore.Pathfinder.Projects
 
         protected virtual void LoadSourceFileNames([NotNull] ProjectOptions projectOptions, [NotNull][ItemNotNull] ICollection<string> sourceFileNames)
         {
-            var ignoreFileNames = Configuration.GetList(Constants.Configuration.BuildProjectIgnoreFileNames).ToList();
-            var ignoreDirectories = Configuration.GetList(Constants.Configuration.BuildProjectIgnoreDirectories).ToList();
+            var ignoreFileNames = Configuration.GetCommaSeparatedStringList(Constants.Configuration.MappingIgnoreFileNames).ToList();
+            var ignoreDirectories = Configuration.GetCommaSeparatedStringList(Constants.Configuration.MappingIgnoreDirectories).ToList();
             ignoreDirectories.Add(Path.GetFileName(Configuration.GetString(Constants.Configuration.ToolsDirectory)));
 
             var visitor = CompositionService.Resolve<ProjectDirectoryVisitor>().With(ignoreDirectories, ignoreFileNames);

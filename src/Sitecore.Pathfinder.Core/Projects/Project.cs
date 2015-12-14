@@ -21,9 +21,9 @@ using Sitecore.Pathfinder.Text;
 
 namespace Sitecore.Pathfinder.Projects
 {
-    [Export]
-    [Export(typeof(IProject))]
-    [PartCreationPolicy(CreationPolicy.NonShared)]
+    public delegate void ProjectChangedEventHandler([NotNull] object sender);
+
+    [Export, Export(typeof(IProject)), PartCreationPolicy(CreationPolicy.NonShared)]
     public class Project : IProject
     {
         [NotNull]
@@ -32,12 +32,10 @@ namespace Sitecore.Pathfinder.Projects
         [NotNull]
         private readonly Dictionary<string, Database> _databases = new Dictionary<string, Database>();
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         private readonly List<Diagnostic> _diagnostics = new List<Diagnostic>();
 
-        [NotNull]
-        [ItemNotNull]
+        [NotNull, ItemNotNull]
         private readonly List<IProjectItem> _projectItems = new List<IProjectItem>();
 
         [CanBeNull]
@@ -133,16 +131,27 @@ namespace Sitecore.Pathfinder.Projects
             var newItem = projectItem as Item;
             if (newItem != null)
             {
-                return (T)MergeItem(newItem);
+                var addedItem = (T)MergeItem(newItem);
+
+                OnProjectChanged();
+
+                return addedItem;
             }
 
             var newTemplate = projectItem as Template;
             if (newTemplate != null)
             {
-                return (T)MergeTemplate(newTemplate);
+                var addedTemplate = (T)MergeTemplate(newTemplate);
+
+                OnProjectChanged();
+
+                return addedTemplate;
             }
 
             _projectItems.Add(projectItem);
+
+            OnProjectChanged();
+
             return projectItem;
         }
 
@@ -155,43 +164,43 @@ namespace Sitecore.Pathfinder.Projects
             return this;
         }
 
-        public IProjectItem FindQualifiedItem(string qualifiedName)
+        public T FindQualifiedItem<T>(string qualifiedName) where T : IProjectItem
         {
             if (!qualifiedName.StartsWith("{") || !qualifiedName.EndsWith("}"))
             {
-                return ProjectItems.FirstOrDefault(i => string.Equals(i.QualifiedName, qualifiedName, StringComparison.OrdinalIgnoreCase));
+                return ProjectItems.OfType<T>().FirstOrDefault(i => string.Equals(i.QualifiedName, qualifiedName, StringComparison.OrdinalIgnoreCase));
             }
 
             Guid guid;
             if (Guid.TryParse(qualifiedName, out guid))
             {
-                return ProjectItems.FirstOrDefault(i => i.Uri.Guid == guid);
+                return ProjectItems.OfType<T>().FirstOrDefault(i => i.Uri.Guid == guid);
             }
 
             guid = StringHelper.ToGuid(qualifiedName);
-            return ProjectItems.FirstOrDefault(i => i.Uri.Guid == guid);
+            return ProjectItems.OfType<T>().FirstOrDefault(i => i.Uri.Guid == guid);
         }
 
-        public IProjectItem FindQualifiedItem(string databaseName, string qualifiedName)
+        public T FindQualifiedItem<T>(string databaseName, string qualifiedName) where T : IProjectItem
         {
             if (!qualifiedName.StartsWith("{") || !qualifiedName.EndsWith("}"))
             {
-                return ProjectItems.FirstOrDefault(i => string.Equals(i.QualifiedName, qualifiedName, StringComparison.OrdinalIgnoreCase) && i.Uri.FileOrDatabaseName == databaseName);
+                return ProjectItems.OfType<T>().FirstOrDefault(i => string.Equals(i.QualifiedName, qualifiedName, StringComparison.OrdinalIgnoreCase) && i.Uri.FileOrDatabaseName == databaseName);
             }
 
             Guid guid;
             if (Guid.TryParse(qualifiedName, out guid))
             {
-                return ProjectItems.FirstOrDefault(i => i.Uri.Guid == guid && i.Uri.FileOrDatabaseName == databaseName);
+                return ProjectItems.OfType<T>().FirstOrDefault(i => i.Uri.Guid == guid && i.Uri.FileOrDatabaseName == databaseName);
             }
 
             guid = StringHelper.ToGuid(qualifiedName);
-            return ProjectItems.FirstOrDefault(i => i.Uri.Guid == guid && i.Uri.FileOrDatabaseName == databaseName);
+            return ProjectItems.OfType<T>().FirstOrDefault(i => i.Uri.Guid == guid && i.Uri.FileOrDatabaseName == databaseName);
         }
 
-        public IProjectItem FindQualifiedItem(ProjectItemUri uri)
+        public T FindQualifiedItem<T>(ProjectItemUri uri) where T : IProjectItem
         {
-            return ProjectItems.FirstOrDefault(i => i.Uri == uri);
+            return ProjectItems.OfType<T>().FirstOrDefault(i => i.Uri == uri);
         }
 
         public Database GetDatabase(string databaseName)
@@ -208,11 +217,21 @@ namespace Sitecore.Pathfinder.Projects
             return database;
         }
 
+        public IEnumerable<Item> GetItems(string databaseName)
+        {
+            return Items.Where(i => string.Equals(i.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public IEnumerable<Template> GetTemplates(string databaseName)
+        {
+            return Templates.Where(t => string.Equals(t.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase));
+        }
+
         public virtual IProject Load(ProjectOptions projectOptions, IEnumerable<string> sourceFileNames)
         {
             Options = projectOptions;
 
-            var context = CompositionService.Resolve<IParseContext>().With(this, Snapshot.Empty);
+            var context = CompositionService.Resolve<IParseContext>().With(this, Snapshot.Empty, PathMappingContext.Empty);
 
             var projectImportService = CompositionService.Resolve<ProjectImportsService>();
             projectImportService.Import(this, context);
@@ -227,9 +246,19 @@ namespace Sitecore.Pathfinder.Projects
             return this;
         }
 
+        public event ProjectChangedEventHandler ProjectChanged;
+
         public virtual void Remove(IProjectItem projectItem)
         {
             _projectItems.Remove(projectItem);
+
+            var unloadable = projectItem as IUnloadable;
+            if (unloadable != null)
+            {
+                unloadable.Unload();
+            }
+
+            OnProjectChanged();
         }
 
         public virtual void Remove(string sourceFileName)
@@ -337,6 +366,11 @@ namespace Sitecore.Pathfinder.Projects
             var template = templates.First();
             template.Merge(newTemplate);
             return template;
+        }
+
+        protected virtual void OnProjectChanged()
+        {
+            ProjectChanged?.Invoke(this);
         }
     }
 }

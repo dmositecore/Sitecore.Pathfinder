@@ -24,8 +24,6 @@ namespace Sitecore.Pathfinder.Parsing
         [NotNull]
         string FilePath { get; }
 
-        bool IsExtern { get; }
-
         [NotNull]
         string ItemName { get; }
 
@@ -50,6 +48,9 @@ namespace Sitecore.Pathfinder.Parsing
         bool UploadMedia { get; }
 
         [NotNull]
-        IParseContext With([NotNull] IProject project, [NotNull] ISnapshot snapshot);
+        ISchemaService SchemaService { get; }
+
+        [NotNull]
+        IParseContext With([NotNull] IProject project, [NotNull] ISnapshot snapshot, [NotNull] PathMappingContext pathMappingContext);
     }
 }

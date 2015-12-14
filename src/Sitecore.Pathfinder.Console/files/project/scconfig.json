@@ -1,8 +1,8 @@
 {
-    // every project must have a unique id, since the project-unique-id is used to
-    // calculate item ids.
+    // every project must have a unique id, since the project-unique-id is used to calculate item ids
     "project-unique-id": "{project-unique-id}",
 
+    // website directories and host name
     "website-directory": "c:\\inetpub\\wwwroot\\Sitecore.Default\\Website",
     "data-folder-directory": "c:\\inetpub\\wwwroot\\Sitecore.Default\\Data",
     "host-name": "http://sitecore.default",
@@ -11,46 +11,49 @@
     "user-name": "sitecore\\admin",
     "password": "b",
 
-    // Sitecore database name (master, core, or web)
+    // default Sitecore database name (master, core, or web)
     "database": "master",
 
-    // =====
-    // TASKS
-    // =====
+    // mapping between project files and website files and items
+    "project-website-mappings": {
 
-    "build-project": {
-        // build tasks
-        "tasks": "check-project write-exports pack-nuget copy-dependencies copy-package install-package publish-database show-metrics",
-
-        // mapping of files between project paths and website paths and item paths
-        "files": {
+        // mapping items and files to website when building a project
+        "project-to-website": {
             "master": {
-                "project-directory": "/content/master/sitecore",
-                "include": "**",
-                "website-directory": "/",
-                "item-path": "/sitecore",
-                "database": "master"
+                "project-directory-to-item-path": "/items/master/sitecore => /sitecore",
+                "project-directory-to-website-directory": "/items/master/sitecore => /"
             },
+
             "core": {
-                "project-directory": "/content/core/sitecore",
-                "include": "**",
-                "website-directory": "/",
-                "item-path": "/sitecore",
+                "project-directory-to-item-path": "/items/core/sitecore => /sitecore",
+                "project-directory-to-website-directory": "/items/core/sitecore => /",
                 "database": "core"
             },
-            "views": {
-                "project-directory": "/Views",
-                "include": "**",
-                "website-directory": "/Views",
-                "item-path": "/sitecore/layout/renderings"
+
+            "bin": {
+                "project-directory-to-website-directory": "/bin => /bin",
+                "file-name-include": "*.dll"
             },
+
             "wwwroot": {
-                "project-directory": "/wwwroot",
-                "include": "**",
-                "website-directory": "/",
-                "item-path": "/",
+                "project-directory-to-item-path": "/wwwroot => /",
+                "project-directory-to-website-directory": "/wwwroot => /",
                 "upload-media": false
+            },
+
+            "views": {
+                "project-directory-to-item-path": "/views => /sitecore/layout/renderings",
+                "project-directory-to-website-directory": "/views => /views"
             }
+        },
+
+        // mapping items and files to project when importing a website
+        "website-to-project": {
         }
+    },
+
+    // tasks to execute when building
+    "build-project": {
+        "tasks": "check-project write-exports pack-nuget copy-dependencies copy-package install-package publish-database show-metrics"
     }
 }

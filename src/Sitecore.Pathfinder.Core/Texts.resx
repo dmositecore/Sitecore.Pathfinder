@@ -295,7 +295,7 @@
     <value>Hi there.</value>
   </data>
   <data name="Just_so_you_know__I_have_updated_the__Sitecore_Pathfinder_Server_dll__and__NuGet_Core_dll__assemblies_in_the___bin__directory_in_the_website_and_a_number_of___aspx__files_in_the___sitecore_shell_client_Applications_Pathfinder__directory_to_the_latest_version" xml:space="preserve">
-    <value>Just so you know, I have updated the Pathfinder assemblies in the '/bin' directory in the website and the files in the '/sitecore/shell/client/Applications/Pathfinder' directory to the latest version.</value>
+    <value>Just so you know, I have updated some files on the website...</value>
   </data>
   <data name="Just_so_you_know__I_have_copied_the__Sitecore_Pathfinder_Server_dll__and__NuGet_Core_dll__assemblies_to_the___bin__directory_in_the_website_and_a_number_of___aspx__files_to_the___sitecore_shell_client_Applications_Pathfinder__directory" xml:space="preserve">
     <value>Just so you know, I have copied the 'Sitecore.Pathfinder.Server.dll' and 'NuGet.Core.dll' assemblies to the '/bin' directory in the website and a number of '.aspx' files to the '/sitecore/shell/client/Applications/Pathfinder' directory</value>
@@ -539,5 +539,68 @@
   </data>
     <data name="Config_file_not_found__" xml:space="preserve">
     <value>Config file not found: </value>
+  </data>
+    <data name="Rebuilding_indexes___" xml:space="preserve">
+    <value>Rebuilding indexes...</value>
+  </data>
+    <data name="Republishing_master_database___" xml:space="preserve">
+    <value>Republishing master database...</value>
+  </data>
+    <data name="Rebuilding_link_database___" xml:space="preserve">
+    <value>Rebuilding link database...</value>
+  </data>
+    <data name="ConfigurationSsettingMapWebsiteDirectoryToProjectDirectoryIsInvalid" xml:space="preserve">
+    <value>Configuration setting 'map-website-directory-to-project-directory' is invalid. Are you missing a '=&gt;'?</value>
+  </data>
+    <data name="Format_not_found" xml:space="preserve">
+    <value>Format not found</value>
+  </data>
+    <data name="Hey__GruntJS_has_not_yet_been_installed__Run_the_install_grunt_cmd_file_to_install_it_" xml:space="preserve">
+    <value>Hey, GruntJS has not yet been installed. Run the install-grunt.cmd file to install it.</value>
+  </data>
+    <data name="Writing_serialization___" xml:space="preserve">
+    <value>Writing serialization...</value>
+  </data>
+    <data name="Cannot_run_task_without_a_configuration_file" xml:space="preserve">
+    <value>Cannot run task without a configuration file</value>
+  </data>
+    <data name="Node_type_expected" xml:space="preserve">
+    <value>Node type expected</value>
+  </data>
+    <data name="Element_type_expected" xml:space="preserve">
+    <value>Element type expected</value>
+  </data>
+    <data name="Node_or_Field_type_expected" xml:space="preserve">
+    <value>Node or Field type expected</value>
+  </data>
+    <data name="Field_name_expected" xml:space="preserve">
+    <value>Field name expected</value>
+  </data>
+    <data name="Parent_name_expected" xml:space="preserve">
+    <value>Parent name expected</value>
+  </data>
+    <data name="Input_is_not_valid__" xml:space="preserve">
+    <value>Input is not valid: </value>
+  </data>
+    <data name="String_operator_not_found" xml:space="preserve">
+    <value>String operator not found</value>
+  </data>
+    <data name="Host_not_found" xml:space="preserve">
+    <value>Host not found</value>
+  </data>
+    <data name="Failed_to_parse_Id_" xml:space="preserve">
+    <value>Failed to parse Id.</value>
+  </data>
+    <data name="Action_not_found__" xml:space="preserve">
+    <value>Action not found: </value>
+  </data>
+    <data name="Condition_not_found__" xml:space="preserve">
+    <value>Condition not found: </value>
+  </data>
+    <data name="Missing_Mapping" xml:space="preserve">
+    <value>Missing =&gt;</value>
+  </data>
+    <data name="Rendering_has_not_yet_been_compiled" xml:space="preserve">
+    <value>Rendering has not yet been compiled</value>
   </data>
 </root>

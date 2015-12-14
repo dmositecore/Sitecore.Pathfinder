@@ -135,12 +135,23 @@ namespace Sitecore.Pathfinder.Configuration
                 }
             }
 
+            // add project role config - scconfig.role.*.json
+            var projectRole = configurationSourceRoot.GetString("project-role");
+            if (!string.IsNullOrEmpty(projectRole))
+            {
+                var projectRoleConfig = Path.Combine(toolsDirectory, $"files\\project.roles\\scconfig.role.{projectRole}.json");
+                if (File.Exists(projectRoleConfig))
+                {
+                    configurationSourceRoot.AddFile(projectRoleConfig);
+                }
+            }
+
             var machineConfigFileName = Path.GetFileNameWithoutExtension(projectConfigFileName) + "." + Environment.MachineName + ".json";
 
             // add module configs (ignore machine config - it will be added last) - scconfig.[module].json 
             if ((options & ConfigurationOptions.IncludeModuleConfig) == ConfigurationOptions.IncludeModuleConfig)
             {
-                foreach (var moduleFileName in Directory.GetFiles(projectDirectory, "*scconfig.*.json").OrderBy(f => f))
+                foreach (var moduleFileName in Directory.GetFiles(projectDirectory, "scconfig.*.json").OrderBy(f => f))
                 {
                     if (!string.Equals(moduleFileName, machineConfigFileName, StringComparison.OrdinalIgnoreCase))
                     {

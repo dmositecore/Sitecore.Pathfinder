@@ -1,47 +1,49 @@
 ﻿// © 2015 Sitecore Corporation A/S. All rights reserved.
 
-using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Web;
 using System.Web.Mvc;
-using System.Xml.Linq;
-using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
-using Sitecore.Data.Managers;
-using Sitecore.Exceptions;
 using Sitecore.IO;
-using Sitecore.Pathfinder.Compiling.Builders;
 using Sitecore.Pathfinder.Configuration;
 using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Extensions;
+using Sitecore.Pathfinder.Importing.ItemImporters;
 using Sitecore.Pathfinder.IO;
-using Sitecore.Pathfinder.Languages.Json;
-using Sitecore.Pathfinder.Languages.Xml;
-using Sitecore.Pathfinder.Languages.Yaml;
+using Sitecore.Pathfinder.IO.PathMappers;
+using Sitecore.Pathfinder.Languages;
 using Sitecore.Pathfinder.Projects;
-using Sitecore.Pathfinder.Projects.Templates;
-using Sitecore.Pathfinder.Snapshots;
-using Sitecore.Pathfinder.Text;
-using Sitecore.SecurityModel;
 
-namespace Sitecore.Pathfinder.WebApi
+namespace Sitecore.Pathfinder.WebApi.ImportWebsites
 {
+    [Export(nameof(ImportWebsite), typeof(IWebApi))]
     public class ImportWebsite : IWebApi
     {
-        [Diagnostics.NotNull]
-        private static readonly Regex SafeName = new Regex("^[a-zA-Z0-9_\\-\\.]+$", RegexOptions.Compiled);
+        [ImportingConstructor]
+        public ImportWebsite([Diagnostics.NotNull] IFactoryService factory, [Diagnostics.NotNull] IFileSystemService fileSystem, [Diagnostics.NotNull] ILanguageService languageService, [Diagnostics.NotNull] IPathMapperService pathMapper, [Diagnostics.NotNull] IItemImporterService itemImporter)
+        {
+            Factory = factory;
+            FileSystem = fileSystem;
+            LanguageService = languageService;
+            PathMapper = pathMapper;
+            ItemImporter = itemImporter;
+        }
 
         [Diagnostics.NotNull]
-        protected IFactoryService Factory { get; private set; }
+        protected IFactoryService Factory { get; }
 
         [Diagnostics.NotNull]
-        protected IFileSystemService FileSystem { get; private set; }
+        protected IFileSystemService FileSystem { get; }
+
+        [Import, Diagnostics.NotNull]
+        protected IItemImporterService ItemImporter { get; }
+
+        [Import, Diagnostics.NotNull]
+        protected ILanguageService LanguageService { get; }
 
         [Diagnostics.NotNull]
-        protected ITraceService Trace { get; private set; }
+        protected IPathMapperService PathMapper { get; }
 
         [Diagnostics.NotNull]
         protected string WebsiteDirectory { get; private set; }
@@ -49,547 +51,134 @@ namespace Sitecore.Pathfinder.WebApi
         public ActionResult Execute(IAppService app)
         {
             WebsiteDirectory = FileUtil.MapPath("/");
-            FileSystem = app.CompositionService.Resolve<IFileSystemService>();
-            Trace = app.CompositionService.Resolve<ITraceService>();
-            Factory = app.CompositionService.Resolve<IFactoryService>();
 
-            foreach (var pair in app.Configuration.GetSubKeys("import-website"))
+            foreach (var mapper in PathMapper.WebsiteItemPathToProjectDirectories)
             {
-                var key = "import-website:" + pair.Key;
+                ImportItems(app, mapper);
+            }
 
-                var databaseName = app.Configuration.GetString(key + ":database");
-                if (key == "import-website:exclude-fields")
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrEmpty(databaseName))
-                {
-                    ImportItems(app, key);
-                }
-                else
-                {
-                    ImportFiles(app, key);
-                }
+            foreach (var mapper in PathMapper.WebsiteDirectoryToProjectDirectories)
+            {
+                ImportFiles(app, mapper);
             }
 
             return null;
         }
 
-        protected virtual void BuildDevice([Diagnostics.NotNull] DeviceBuilder deviceBuilder, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] Item deviceItem, [Diagnostics.NotNull] XElement deviceElement, [Diagnostics.NotNull] [ItemNotNull] List<Item> renderingItems)
+        protected virtual void ImportFiles([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] WebsiteDirectoryToProjectDirectoryMapper mapper)
         {
-            deviceBuilder.DeviceName = deviceItem.Name;
-
-            var layoutItem = item.Database.GetItem(deviceElement.GetAttributeValue("l"));
-            if (layoutItem != null)
-            {
-                deviceBuilder.LayoutItemPath = layoutItem.Paths.Path;
-            }
-
-            foreach (var renderingElement in deviceElement.Elements())
-            {
-                var renderingItem = item.Database.GetItem(renderingElement.GetAttributeValue("id"));
-                if (renderingItem == null)
-                {
-                    continue;
-                }
-
-                var renderingModel = new RenderingBuilder(deviceBuilder);
-
-                ParseRendering(renderingModel, renderingItem, renderingElement, renderingItems);
-
-                deviceBuilder.Renderings.Add(renderingModel);
-            }
-
-            foreach (var rendering in deviceBuilder.Renderings)
-            {
-                rendering.ParentRendering = deviceBuilder.Renderings.FirstOrDefault(r => r.Placeholders.Contains(rendering.Placeholder, StringComparer.OrdinalIgnoreCase));
-                if (rendering.ParentRendering == null)
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(rendering.Placeholder))
-                {
-                    continue;
-                }
-
-                // if the renderings placeholder is the parents first placeholder, omit the rendering placeholder since it is the default
-                if (string.Equals(rendering.ParentRendering.Placeholders.FirstOrDefault(), rendering.Placeholder, StringComparison.OrdinalIgnoreCase))
-                {
-                    rendering.Placeholder = string.Empty;
-                }
-            }
-        }
-
-        [Diagnostics.NotNull]
-        protected virtual Projects.Items.Item BuildItem([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] [ItemNotNull] IEnumerable<string> excludedFields, [Diagnostics.NotNull] string format)
-        {
-            var itemBuilder = new ItemBuilder(Factory)
-            {
-                DatabaseName = item.Database.Name,
-                Guid = item.ID.ToString(),
-                ItemName = item.Name,
-                TemplateIdOrPath = item.Template.InnerItem.Paths.Path,
-                ItemIdOrPath = item.Paths.Path
-            };
-
-            var versions = item.Versions.GetVersions(true);
-            var sharedFields = item.Fields.Where(f => f.Shared && !excludedFields.Contains(f.Name, StringComparer.OrdinalIgnoreCase) && !f.ContainsStandardValue && !string.IsNullOrEmpty(f.Value)).ToList();
-            var unversionedFields = versions.SelectMany(i => i.Fields.Where(f => !f.Shared && f.Unversioned && !excludedFields.Contains(f.Name, StringComparer.OrdinalIgnoreCase) && !f.ContainsStandardValue && !string.IsNullOrEmpty(f.Value))).ToList();
-            var versionedFields = versions.SelectMany(i => i.Fields.Where(f => !f.Shared && !f.Unversioned && !excludedFields.Contains(f.Name, StringComparer.OrdinalIgnoreCase) && !f.ContainsStandardValue && !string.IsNullOrEmpty(f.Value))).ToList();
-
-            // shared fields
-            foreach (var field in sharedFields.OrderBy(f => f.Name))
-            {
-                var value = GetFieldValue(field, item, format);
-                var fieldBuilder = new FieldBuilder(Factory)
-                {
-                    FieldName = field.Name,
-                    Value = value
-                };
-
-                itemBuilder.Fields.Add(fieldBuilder);
-            }
-
-            // unversioned fields
-            foreach (var field in unversionedFields.OrderBy(f => f.Name))
-            {
-                var value = GetFieldValue(field, item, format);
-                var fieldBuilder = new FieldBuilder(Factory)
-                {
-                    FieldName = field.Name,
-                    Value = value,
-                    Language = field.Language.Name
-                };
-
-                itemBuilder.Fields.Add(fieldBuilder);
-            }
-
-            // versioned fields
-            foreach (var field in versionedFields.OrderBy(f => f.Name))
-            {
-                var value = GetFieldValue(field, item, format);
-                var fieldBuilder = new FieldBuilder(Factory)
-                {
-                    FieldName = field.Name,
-                    Value = value,
-                    Language = field.Language.Name,
-                    Version = field.Item.Version.Number
-                };
-
-                itemBuilder.Fields.Add(fieldBuilder);
-            }
-
-            return itemBuilder.Build(project, TextNode.Empty);
-        }
-
-        [Diagnostics.NotNull]
-        protected virtual string GetFieldValue([Diagnostics.NotNull] Field field, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string format)
-        {
-            // todo: make this pluggable
-            var value = field.Value;
-            if (Data.ID.IsID(value))
-            {
-                var i = item.Database.GetItem(value);
-                if (i != null)
-                {
-                    value = i.Paths.Path;
-                }
-            }
-
-            if (field.Name == "__Renderings" || string.Equals(field.Type, "Layout", StringComparison.OrdinalIgnoreCase))
-            {
-                var layoutBuilder = new LayoutBuilder();
-                BuildLayout(layoutBuilder, item, value);
-
-                // todo: make this pluggable
-                var stringWriter = new StringWriter();
-                switch (format.ToLowerInvariant())
-                {
-                    case "item.json":
-                        layoutBuilder.WriteAsJson(stringWriter);
-                        break;
-                    case "item.xml":
-                        layoutBuilder.WriteAsXml(stringWriter, item.Database.Name);
-                        break;
-                    case "item.yaml":
-                        layoutBuilder.WriteAsYaml(stringWriter);
-                        break;
-                }
-
-                value = stringWriter.ToString();
-            }
-
-            switch (field.Type.ToLowerInvariant())
-            {
-                case "general link":
-                case "link":
-                    var linkField = new LinkField(field);
-                    value = linkField.TargetItem?.Paths.Path ?? value;
-                    break;
-                case "image":
-                    var imageField = new ImageField(field);
-                    value = imageField.MediaItem?.Paths.Path ?? value;
-                    break;
-            }
-
-            return value;
-        }
-
-        protected virtual void BuildLayout([Diagnostics.NotNull] LayoutBuilder layoutBuilder, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string layout)
-        {
-            if (string.IsNullOrEmpty(layout))
-            {
-                return;
-            }
-
-            var layoutElement = layout.ToXElement();
-            if (layoutElement == null)
-            {
-                return;
-            }
-
-            var renderingItems = item.Database.GetItemsByTemplate(ServerConstants.Renderings.ViewRenderingId, TemplateIDs.XSLRendering, TemplateIDs.Sublayout, ServerConstants.Renderings.WebcontrolRendering, ServerConstants.Renderings.UrlRendering, ServerConstants.Renderings.MethodRendering).GroupBy(i => i.Name).Select(i => i.First()).OrderBy(i => i.Name).ToList();
-
-            foreach (var deviceElement in layoutElement.Elements())
-            {
-                var deviceId = deviceElement.GetAttributeValue("id");
-                if (string.IsNullOrEmpty(deviceId))
-                {
-                    continue;
-                }
-
-                var deviceItem = item.Database.GetItem(deviceId);
-                if (deviceItem == null)
-                {
-                    continue;
-                }
-
-                var deviceModel = new DeviceBuilder(layoutBuilder);
-
-                BuildDevice(deviceModel, item, deviceItem, deviceElement, renderingItems);
-
-                layoutBuilder.Devices.Add(deviceModel);
-            }
-        }
-
-        [Diagnostics.NotNull]
-        protected virtual Template BuildTemplate([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item)
-        {
-            var templateItem = new TemplateItem(item);
-
-            var templateBuilder = new TemplateBuilder(Factory);
-            templateBuilder.DatabaseName = templateItem.Database.Name;
-            templateBuilder.Guid = templateItem.ID.ToString();
-            templateBuilder.TemplateName = templateItem.Name;
-            templateBuilder.ItemIdOrPath = templateItem.InnerItem.Paths.Path;
-            templateBuilder.Icon = templateItem.InnerItem.Appearance.Icon;
-
-            var baseTemplates = templateItem.BaseTemplates;
-            if (baseTemplates.Length > 1 || (baseTemplates.Length == 1 && baseTemplates[0].ID != TemplateIDs.StandardTemplate))
-            {
-                templateBuilder.BaseTemplates = string.Join("|", baseTemplates.Select(i => i.InnerItem.Paths.Path));
-            }
-
-            foreach (var templateSectionItem in templateItem.GetSections())
-            {
-                var templateSectionBuilder = new TemplateSectionBuilder(Factory).With(templateBuilder, TextNode.Empty);
-                templateSectionBuilder.SectionId = templateSectionItem.ID.ToString();
-                templateSectionBuilder.SectionName = templateSectionItem.Name;
-
-                foreach (var templateFieldItem in templateSectionItem.GetFields())
-                {
-                    var templateFieldBuilder = new TemplateFieldBuilder(Factory).With(templateSectionBuilder, TextNode.Empty);
-                    templateFieldBuilder.FieldId = templateFieldItem.ID.ToString();
-                    templateFieldBuilder.FieldName = templateFieldItem.Name;
-                    templateFieldBuilder.Source = templateFieldItem.Source;
-                    templateFieldBuilder.Type = templateFieldItem.Type;
-
-                    templateSectionBuilder.Fields.Add(templateFieldBuilder);
-                }
-
-                templateBuilder.Sections.Add(templateSectionBuilder);
-            }
-
-            return templateBuilder.Build(project, TextNode.Empty);
-        }
-
-        [NotNull]
-        protected virtual string GetUniqueRenderingName([NotNull] [ItemNotNull] IEnumerable<Item> duplicates, [Diagnostics.NotNull] Item renderingItem)
-        {
-            var paths = duplicates.Where(r => r.Name == renderingItem.Name && r.ID != renderingItem.ID).Select(r => r.Paths.Path).ToList();
-            var parts = renderingItem.Paths.Path.Split(Constants.Slash, StringSplitOptions.RemoveEmptyEntries);
-
-            var result = string.Empty;
-
-            for (var i = parts.Length - 1; i >= 0; i--)
-            {
-                result = "/" + parts[i] + result;
-
-                var r = result;
-                if (!paths.Any(p => p.EndsWith(r, StringComparison.InvariantCultureIgnoreCase)))
-                {
-                    break;
-                }
-            }
-
-            result = result.Mid(1).Replace("/", ".");
-
-            return result;
-        }
-
-        protected virtual void ImportFiles([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] string key)
-        {
-            var map = app.Configuration.GetString(key + ":map-website-directory-to-project-directory");
-            var n = map.IndexOf("=>", StringComparison.OrdinalIgnoreCase);
-            if (n < 0)
-            {
-                throw new Diagnostics.ConfigurationException("Configuration setting 'map-website-directory-to-project-directory' is invalid. Are you missing a '=>'?");
-            }
-
-            var sourceDirectory = PathHelper.NormalizeFilePath(Path.Combine(WebsiteDirectory, PathHelper.NormalizeFilePath(map.Left(n).Trim()).TrimStart('\\'))).TrimEnd('\\');
-            var projectDirectory = PathHelper.NormalizeFilePath(Path.Combine(app.ProjectDirectory, PathHelper.NormalizeFilePath(map.Mid(n + 2).Trim()).TrimStart('\\'))).TrimEnd('\\');
+            var sourceDirectory = PathHelper.NormalizeFilePath(Path.Combine(WebsiteDirectory, PathHelper.NormalizeFilePath(mapper.WebsiteDirectory).TrimStart('\\'))).TrimEnd('\\');
 
             if (!FileSystem.DirectoryExists(sourceDirectory))
             {
                 return;
             }
 
-            var searchPattern = app.Configuration.GetString(key + ":search-pattern", "*");
-            var include = app.Configuration.GetString(key + ":include");
-            var exclude = app.Configuration.GetString(key + ":exclude");
+            ImportFiles(app, mapper, FileUtil.MapPath("/"), FileUtil.MapPath(PathHelper.NormalizeItemPath(mapper.WebsiteDirectory)));
+        }
 
-            IEnumerable<string> fileNames;
+        protected virtual void ImportFiles([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] WebsiteDirectoryToProjectDirectoryMapper mapper, [Diagnostics.NotNull] string websiteDirectory, [Diagnostics.NotNull] string directoryOrFileName)
+        {
+            var websiteDirectoryOrFileName = '\\' + PathHelper.UnmapPath(websiteDirectory, directoryOrFileName);
 
-            var files = app.Configuration.GetList(key + ":files").ToList();
-            if (files.Any())
+            if (File.Exists(directoryOrFileName))
             {
-                fileNames = files.Select(f => Path.Combine(sourceDirectory, PathHelper.NormalizeFilePath(f).TrimStart('\\')));
-            }
-            else if (!string.IsNullOrEmpty(include) || !string.IsNullOrEmpty(exclude))
-            {
-                var pathMatcher = new PathMatcher(include, exclude);
-                fileNames = FileSystem.GetFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories).Where(f => pathMatcher.IsMatch(f)).ToList();
-            }
-            else
-            {
-                fileNames = FileSystem.GetFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories);
-            }
-
-            FileSystem.CreateDirectory(projectDirectory);
-            foreach (var fileName in fileNames)
-            {
-                if (!FileSystem.FileExists(fileName))
+                string projectFileName;
+                if (mapper.TryGetProjectFileName(websiteDirectoryOrFileName, out projectFileName))
                 {
-                    continue;
+                    FileSystem.Copy(directoryOrFileName, Path.Combine(app.ProjectDirectory, projectFileName));
                 }
 
-                var targetFileName = Path.Combine(projectDirectory, PathHelper.UnmapPath(sourceDirectory, fileName));
-                try
+                return;
+            }
+
+            if (Directory.Exists(directoryOrFileName))
+            {
+                string projectFileName;
+                if (mapper.TryGetProjectFileName(websiteDirectoryOrFileName, out projectFileName))
                 {
-                    FileSystem.Copy(fileName, targetFileName);
+                    FileSystem.XCopy(directoryOrFileName, Path.Combine(app.ProjectDirectory, projectFileName));
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    Trace.TraceError(Msg.M1022, ex.Message, fileName);
-                }
+            }
+
+            if (!Directory.Exists(directoryOrFileName))
+            {
+                return;
+            }
+
+            foreach (var fileName in Directory.GetFiles(directoryOrFileName, "*", SearchOption.TopDirectoryOnly))
+            {
+                ImportFiles(app, mapper, websiteDirectory, fileName);
+            }
+
+            foreach (var directory in Directory.GetDirectories(directoryOrFileName, "*", SearchOption.TopDirectoryOnly))
+            {
+                ImportFiles(app, mapper, websiteDirectory, directory);
             }
         }
 
-        protected virtual void ImportItems([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] string key)
+        protected virtual void ImportItems([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] WebsiteItemPathToProjectDirectoryMapper mapper)
         {
             var project = app.CompositionService.Resolve<IProject>();
 
-            var excludedFields = app.Configuration.GetList("import-website:exclude-fields");
-
-            var databaseName = app.Configuration.GetString(key + ":database");
-
-            var map = app.Configuration.GetString(key + ":map-item-path-to-file-path", "/ => /content/" + databaseName);
-            var n = map.IndexOf("=>", StringComparison.OrdinalIgnoreCase);
-            if (n < 0)
+            var databaseName = mapper.DatabaseName;
+            var format = mapper.Format;
+            var language = LanguageService.GetLanguageByExtension(format);
+            if (language == null)
             {
-               throw new Diagnostics.ConfigurationException("Configuration setting 'map-item-path-to-file-path' is invalid. Are you missing a '=>'?");
+                throw new ConfigurationException(Texts.Format_not_found, format);
             }
 
-            var rootItemPath = PathHelper.NormalizeItemPath(map.Left(n)).Trim().TrimEnd('/');
-            var queryText = app.Configuration.GetString(key + ":query");
-            var useDirectories = app.Configuration.GetBool(key + ":use-directories", true);
-            var format = app.Configuration.GetString(key + ":format", "item.xml");
-            var projectDirectory = PathHelper.NormalizeFilePath(Path.Combine(app.ProjectDirectory, PathHelper.NormalizeFilePath(map.Mid(n + 2).Trim()).TrimStart('\\'))).TrimEnd('\\');
-
             var database = Sitecore.Configuration.Factory.GetDatabase(databaseName);
-            using (new SecurityDisabler())
+            var item = database.GetItem(mapper.ItemPath);
+            if (item == null)
             {
-                foreach (var item in database.Query(queryText))
+                return;
+            }
+
+            var excludedFields = app.Configuration.GetCommaSeparatedStringList(Constants.Configuration.ProjectWebsiteMappingsExcludedFields);
+
+            ImportItems(app, mapper, project, language, item, excludedFields);
+        }
+
+        protected virtual void ImportItems([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] WebsiteItemPathToProjectDirectoryMapper mapper, [Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] ILanguage language, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull, ItemNotNull] IEnumerable<string> excludedFields)
+        {
+            string projectFileName;
+            string format;
+            if (mapper.TryGetProjectFileName(item.Paths.Path, item.TemplateName, out projectFileName, out format))
+            {
+                // template sections and fields are handled by importing the template
+                if (item.TemplateID != TemplateIDs.TemplateSection && item.TemplateID != TemplateIDs.TemplateField)
                 {
-                    // template sections and fields are handled by importing the template
-                    if (item.TemplateID == TemplateIDs.TemplateSection || item.TemplateID == TemplateIDs.TemplateField)
-                    {
-                        continue;
-                    }
+                    var fileName = Path.Combine(app.ProjectDirectory, projectFileName);
 
-                    var fileName = item.Paths.Path;
-                    if (!fileName.StartsWith(rootItemPath))
-                    {
-                        Trace.TraceError(Texts.Item_is_not_in_root_item_path__Skipping_, fileName);
-                        return;
-                    }
+                    FileSystem.CreateDirectoryFromFileName(fileName);
 
-                    fileName = useDirectories ? fileName.Mid(rootItemPath.Length).TrimStart('/') : item.Name.GetSafeCodeIdentifier();
-                    fileName = Path.Combine(projectDirectory, PathHelper.NormalizeFilePath(fileName)) + "." + format;
-
-                    FileSystem.CreateDirectory(Path.GetDirectoryName(fileName) ?? string.Empty);
                     if (item.Template.ID == TemplateIDs.Template)
                     {
-                        WriteTemplate(project, item, fileName, format);
+                        WriteTemplate(project, item, fileName, language);
                     }
                     else
                     {
-                        WriteItem(project, item, fileName, format, excludedFields);
+                        WriteItem(project, item, fileName, language, excludedFields);
                     }
                 }
+            }
+
+            foreach (Item child in item.Children)
+            {
+                ImportItems(app, mapper, project, language, child, excludedFields);
             }
         }
 
-        protected virtual void ParseRendering([Diagnostics.NotNull] RenderingBuilder renderingBuilder, [Diagnostics.NotNull] Item renderingItem, [Diagnostics.NotNull] XElement renderingElement, [Diagnostics.NotNull] [ItemNotNull] List<Item> renderingItems)
+        protected virtual void WriteItem([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string fileName, [Diagnostics.NotNull] ILanguage language, [Diagnostics.NotNull, ItemNotNull] IEnumerable<string> excludedFields)
         {
-            var parameters = new UrlString(renderingElement.GetAttributeValue("par"));
-            renderingBuilder.Id = parameters.Parameters["Id"];
-            renderingBuilder.Placeholder = renderingElement.GetAttributeValue("ph");
-
-            foreach (var placeholder in renderingItem["Place Holders"].Split(Constants.Comma, StringSplitOptions.RemoveEmptyEntries))
-            {
-                renderingBuilder.Placeholders.Add(placeholder.Replace("$Id", renderingBuilder.Id).Trim());
-            }
-
-            var fields = new Dictionary<string, Data.Templates.TemplateField>();
-
-            var parametersTemplateItem = renderingItem.Database.GetItem(renderingItem["Parameters Template"]);
-            if (parametersTemplateItem != null)
-            {
-                var template = TemplateManager.GetTemplate(parametersTemplateItem.ID, renderingItem.Database);
-                if (template != null)
-                {
-                    foreach (var field in template.GetFields(true))
-                    {
-                        if (field.Template.BaseIDs.Length != 0)
-                        {
-                            fields[field.Name.ToLowerInvariant()] = field;
-                        }
-                    }
-                }
-            }
-
-            // rendering name
-            var name = renderingItem.Name;
-
-            var duplicates = renderingItems.Where(i => i.Name == renderingItem.Name).ToList();
-            if (duplicates.Count > 1)
-            {
-                name = GetUniqueRenderingName(duplicates, renderingItem);
-            }
-
-            renderingBuilder.UnsafeName = !SafeName.IsMatch(name);
-            renderingBuilder.Name = name;
-
-            // parameters
-            foreach (var key in parameters.Parameters.Keys.OfType<string>().Where(k => !string.IsNullOrEmpty(k)).OrderBy(k => k))
-            {
-                var value = parameters.Parameters[key];
-                if (string.IsNullOrEmpty(value))
-                {
-                    continue;
-                }
-
-                value = HttpUtility.UrlDecode(value) ?? string.Empty;
-
-                Data.Templates.TemplateField field;
-                if (fields.TryGetValue(key.ToLowerInvariant(), out field))
-                {
-                    switch (field.Type.ToLowerInvariant())
-                    {
-                        case "checkbox":
-                            if (!value.StartsWith("{Binding"))
-                            {
-                                value = MainUtil.GetBool(value, false) ? "True" : "False";
-                            }
-
-                            break;
-
-                        case "droptree":
-                            if (Data.ID.IsID(value))
-                            {
-                                var i = renderingItem.Database.GetItem(value);
-                                if (i != null)
-                                {
-                                    value = i.Paths.Path;
-                                }
-                            }
-
-                            break;
-                    }
-
-                    var source = new Sitecore.Text.UrlString(field.Source);
-                    var defaultValue = source.Parameters["defaultvalue"] ?? string.Empty;
-
-                    if (string.Equals(value, defaultValue, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                }
-
-                // todo: Hacky, hacky, hacky
-                if ((key == "IsEnabled" || key == "IsVisible") && value == "True")
-                {
-                    continue;
-                }
-
-                renderingBuilder.Attributes[key] = value;
-            }
-
-            // data source
-            var dataSource = renderingElement.GetAttributeValue("ds");
-            if (Data.ID.IsID(dataSource))
-            {
-                var dataSourceItem = renderingItem.Database.GetItem(dataSource);
-                if (dataSourceItem != null)
-                {
-                    dataSource = dataSourceItem.Paths.Path;
-                }
-            }
-
-            renderingBuilder.DataSource = dataSource;
-
-            // caching
-            renderingBuilder.Cacheable = renderingElement.GetAttributeValue("cac") == @"1";
-            renderingBuilder.VaryByData = renderingElement.GetAttributeValue("vbd") == @"1";
-            renderingBuilder.VaryByDevice = renderingElement.GetAttributeValue("vbdev") == @"1";
-            renderingBuilder.VaryByLogin = renderingElement.GetAttributeValue("vbl") == @"1";
-            renderingBuilder.VaryByParameters = renderingElement.GetAttributeValue("vbp") == @"1";
-            renderingBuilder.VaryByQueryString = renderingElement.GetAttributeValue("vbqs") == @"1";
-            renderingBuilder.VaryByUser = renderingElement.GetAttributeValue("vbu") == @"1";
-        }
-
-        protected virtual void WriteItem([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string fileName, [Diagnostics.NotNull] string format, [Diagnostics.NotNull] [ItemNotNull] IEnumerable<string> excludedFields)
-        {
-            var itemToWrite = BuildItem(project, item, excludedFields, format);
+            var itemToWrite = ItemImporter.ImportItem(project, item, language, excludedFields);
 
             using (var stream = new StreamWriter(fileName))
             {
-                // todo: make this pluggable
-                switch (format.ToLowerInvariant())
-                {
-                    case "item.json":
-                        itemToWrite.WriteAsJson(stream);
-                        break;
-                    case "item.xml":
-                        itemToWrite.WriteAsXml(stream);
-                        break;
-                    case "item.yaml":
-                        itemToWrite.WriteAsYaml(stream);
-                        break;
-                }
+                language.WriteItem(stream, itemToWrite);
             }
 
             // write media file
@@ -605,25 +194,12 @@ namespace Sitecore.Pathfinder.WebApi
             }
         }
 
-        protected virtual void WriteTemplate([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string fileName, [Diagnostics.NotNull] string format)
+        protected virtual void WriteTemplate([Diagnostics.NotNull] IProject project, [Diagnostics.NotNull] Item item, [Diagnostics.NotNull] string fileName, [Diagnostics.NotNull] ILanguage language)
         {
-            var templateToWrite = BuildTemplate(project, item);
-
+            var template = ItemImporter.ImportTemplate(project, item);
             using (var stream = new StreamWriter(fileName))
             {
-                // todo: make this pluggable
-                switch (format.ToLowerInvariant())
-                {
-                    case "item.json":
-                        templateToWrite.WriteAsJson(stream);
-                        break;
-                    case "item.xml":
-                        templateToWrite.WriteAsXml(stream);
-                        break;
-                    case "item.yaml":
-                        templateToWrite.WriteAsYaml(stream);
-                        break;
-                }
+                language.WriteTemplate(stream, template);
             }
         }
     }

@@ -29,8 +29,9 @@ namespace Sitecore.Pathfinder.Parsing.Items
 
             var item = context.ParseContext.Factory.Item(context.ParseContext.Project, textNode, guid, databaseName, itemNameTextNode.Value, itemIdOrPath, templateIdOrPath);
             item.ItemNameProperty.AddSourceTextNode(itemNameTextNode);
+            // todo: yuck
             item.IsEmittable = !string.Equals(textNode.GetAttributeValue(Constants.Fields.IsEmittable), "False", StringComparison.OrdinalIgnoreCase);
-            item.IsImport = string.Equals(textNode.GetAttributeValue(Constants.Fields.IsExtern, context.IsExtern.ToString()), "True", StringComparison.OrdinalIgnoreCase);
+            item.IsImport = string.Equals(textNode.GetAttributeValue(Constants.Fields.IsImport, context.IsImport.ToString()), "True", StringComparison.OrdinalIgnoreCase);
 
             if (templateIdOrPathTextNode != null)
             {
@@ -42,9 +43,9 @@ namespace Sitecore.Pathfinder.Parsing.Items
                 }
             }
 
-            context.ParseContext.PipelineService.Resolve<ItemParserPipeline>().Execute(context, item, textNode);
-
             ParseChildNodes(context, item, textNode);
+
+            context.ParseContext.PipelineService.Resolve<ItemParserPipeline>().Execute(context, item, textNode);
 
             context.ParseContext.Project.AddOrMerge(item);
         }
@@ -80,11 +81,11 @@ namespace Sitecore.Pathfinder.Parsing.Items
             }
         }
 
-        protected virtual void ParseFieldsTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] ITextNode textNode)
+        protected virtual void ParseFieldsTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] ITextNode fieldsTextNode)
         {
             var languageVersionContext = new LanguageVersionContext();
 
-            foreach (var childNode in textNode.ChildNodes)
+            foreach (var childNode in fieldsTextNode.ChildNodes)
             {
                 switch (childNode.Key)
                 {
@@ -141,13 +142,15 @@ namespace Sitecore.Pathfinder.Parsing.Items
             ParseFieldTextNode(context, item, languageVersionContext, textNode, fieldNameTextNode, valueTextNode);
         }
 
-        protected virtual void ParseFieldTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] LanguageVersionContext languageVersionContext, [NotNull] ITextNode textNode, [NotNull] ITextNode fieldNameTextNode, [CanBeNull] ITextNode valueTextNode)
+        protected virtual void ParseFieldTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] LanguageVersionContext languageVersionContext, [NotNull] ITextNode fieldTextNode, [NotNull] ITextNode fieldNameTextNode, [CanBeNull] ITextNode valueTextNode)
         {
-            var field = context.ParseContext.Factory.Field(item, textNode);
+            context.ParseContext.SchemaService.ValidateTextNodeSchema(fieldTextNode);
+
+            var field = context.ParseContext.Factory.Field(item, fieldTextNode);
             field.FieldNameProperty.SetValue(fieldNameTextNode);
             field.LanguageProperty.SetValue(languageVersionContext.LanguageProperty, SetValueOptions.DisableUpdates);
             field.VersionProperty.SetValue(languageVersionContext.VersionProperty, SetValueOptions.DisableUpdates);
-            field.ValueHintProperty.Parse(textNode);
+            field.ValueHintProperty.Parse(fieldTextNode);
 
             if (valueTextNode != null)
             {
@@ -162,7 +165,7 @@ namespace Sitecore.Pathfinder.Parsing.Items
             }
             else
             {
-                context.ParseContext.Trace.TraceError(Msg.P1011, Texts.Field_is_already_defined, textNode, duplicate.FieldName);
+                context.ParseContext.Trace.TraceError(Msg.P1011, Texts.Field_is_already_defined, fieldTextNode, duplicate.FieldName);
             }
 
             if (!item.IsImport && !field.ValueHint.Contains("NoReference"))
@@ -173,9 +176,7 @@ namespace Sitecore.Pathfinder.Parsing.Items
 
         protected abstract void ParseLayoutTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] ITextNode textNode);
 
-        protected virtual void ParseUnknownTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] LanguageVersionContext languageVersionContext, [NotNull] ITextNode textNode)
-        {
-        }
+        protected abstract void ParseUnknownTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] LanguageVersionContext languageVersionContext, [NotNull] ITextNode textNode);
 
         protected abstract void ParseUnversionedTextNode([NotNull] ItemParseContext context, [NotNull] Item item, [NotNull] ITextNode textNode);
 

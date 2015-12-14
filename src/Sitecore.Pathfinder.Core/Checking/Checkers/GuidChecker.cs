@@ -2,7 +2,9 @@
 
 using System;
 using System.Linq;
+using Sitecore.Pathfinder.Projects;
 using Sitecore.Pathfinder.Projects.Items;
+using Sitecore.Pathfinder.Projects.Templates;
 
 namespace Sitecore.Pathfinder.Checking.Checkers
 {
@@ -14,17 +16,17 @@ namespace Sitecore.Pathfinder.Checking.Checkers
 
         public override void Check(ICheckerContext context)
         {
-            var items = context.Project.ProjectItems.Where(i => !(i is ItemBase) || !((ItemBase)i).IsImport).ToArray();
+            var items = context.Project.ProjectItems.Where(i => !(i is DatabaseProjectItem) || !((DatabaseProjectItem)i).IsImport).ToArray();
 
             for (var i = 0; i < items.Length; i++)
             {
                 var projectItem1 = items[i];
-                var item1 = projectItem1 as ItemBase;
+                var item1 = projectItem1 as DatabaseProjectItem;
 
                 for (var j = i + 1; j < items.Length; j++)
                 {
                     var projectItem2 = items[j];
-                    var item2 = items[j] as ItemBase;
+                    var item2 = items[j] as DatabaseProjectItem;
 
                     if (projectItem1.Uri.Guid != projectItem2.Uri.Guid)
                     {
@@ -36,7 +38,18 @@ namespace Sitecore.Pathfinder.Checking.Checkers
                         continue;
                     }
 
-                    context.Trace.TraceError(Msg.C1001, Texts.Unique_ID_clash, projectItem1.QualifiedName);
+                    // todo: not good
+                    if (item1 is Item && item2 is Template)
+                    {
+                        continue;
+                    }
+
+                    if (item1 is Template && item2 is Item)
+                    {
+                        continue;
+                    }
+
+                    context.Trace.TraceError(Msg.C1001, Texts.Unique_ID_clash, projectItem1.Snapshots.First().SourceFile, projectItem2.Snapshots.First().SourceFile.AbsoluteFileName);
                     context.IsDeployable = false;
                 }
             }

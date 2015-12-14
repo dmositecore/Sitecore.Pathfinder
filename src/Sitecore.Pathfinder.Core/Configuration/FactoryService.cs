@@ -34,13 +34,14 @@ namespace Sitecore.Pathfinder.Configuration
         private IReferenceParserService _referenceParser;
 
         [ImportingConstructor]
-        public FactoryService([NotNull] IConfiguration configuration, [NotNull] ICompositionService compositionService, [NotNull] IConsoleService console, [NotNull] IPipelineService pipelineService, [NotNull] IFileSystemService fileSystem)
+        public FactoryService([NotNull] IConfiguration configuration, [NotNull] ICompositionService compositionService, [NotNull] IConsoleService console, [NotNull] IPipelineService pipelineService, [NotNull] IFileSystemService fileSystem, [NotNull] ISchemaService schemaService)
         {
             Configuration = configuration;
             CompositionService = compositionService;
             Console = console;
             PipelineService = pipelineService;
             FileSystem = fileSystem;
+            SchemaService = schemaService;
         }
 
         [NotNull]
@@ -54,6 +55,12 @@ namespace Sitecore.Pathfinder.Configuration
 
         [NotNull]
         protected IFileSystemService FileSystem { get; }
+
+        [NotNull]
+        protected ISchemaService SchemaService { get; }
+
+        [NotNull]
+        protected IPathMapperService PathMapper { get; }
 
         [NotNull]
         protected IParseService ParseService => _parseService ?? (_parseService = CompositionService.Resolve<IParseService>());
@@ -127,9 +134,9 @@ namespace Sitecore.Pathfinder.Configuration
             return new ItemBuilder(this);
         }
 
-        public virtual ItemParseContext ItemParseContext(IParseContext context, ItemParser itemParser, string databaseName, string parentItemPath, bool isExtern)
+        public virtual ItemParseContext ItemParseContext(IParseContext context, ItemParser itemParser, string databaseName, string parentItemPath, bool isImport)
         {
-            return new ItemParseContext(context, itemParser, databaseName, parentItemPath, isExtern);
+            return new ItemParseContext(context, itemParser, databaseName, parentItemPath, isImport);
         }
 
         public virtual LayoutReference LayoutReference(IProjectItem projectItem, SourceProperty<string> layoutSourceProperty)
@@ -147,9 +154,9 @@ namespace Sitecore.Pathfinder.Configuration
             return new MediaFile(project, snapshot, databaseName, itemName, itemPath, filePath);
         }
 
-        public virtual IParseContext ParseContext(IProject project, ISnapshot snapshot)
+        public virtual IParseContext ParseContext(IProject project, ISnapshot snapshot, PathMappingContext pathMappingContext)
         {
-            return new ParseContext(Configuration, Console, this, PipelineService, ReferenceParser).With(project, snapshot);
+            return new ParseContext(Configuration, Console, this, PipelineService, SchemaService, ReferenceParser).With(project, snapshot, pathMappingContext);
         }
 
         public virtual IProject Project(ProjectOptions projectOptions, List<string> sourceFileNames)

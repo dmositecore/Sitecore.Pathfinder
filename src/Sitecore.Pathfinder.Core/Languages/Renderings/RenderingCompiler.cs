@@ -2,6 +2,7 @@
 
 using System.Linq;
 using Sitecore.Pathfinder.Compiling.Compilers;
+using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Projects;
 using Sitecore.Pathfinder.Projects.References;
 using Sitecore.Pathfinder.Snapshots;
@@ -11,6 +12,10 @@ namespace Sitecore.Pathfinder.Languages.Renderings
 {
     public class RenderingCompiler : CompilerBase
     {
+        public RenderingCompiler() : base(1000)
+        {
+        }
+
         public override bool CanCompile(ICompileContext context, IProjectItem projectItem)
         {
             return projectItem is Rendering;
@@ -19,10 +24,7 @@ namespace Sitecore.Pathfinder.Languages.Renderings
         public override void Compile(ICompileContext context, IProjectItem projectItem)
         {
             var rendering = projectItem as Rendering;
-            if (rendering == null)
-            {
-                return;
-            }
+            Assert.Cast(rendering, nameof(rendering));
 
             var project = rendering.Project;
             var snapshot = rendering.Snapshots.First();

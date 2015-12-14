@@ -3,16 +3,20 @@
 using System;
 using System.ComponentModel.Composition;
 using System.IO;
+using System.Reflection;
 using Microsoft.Framework.ConfigurationModel;
 using Sitecore.Pathfinder.Checking;
 using Sitecore.Pathfinder.Configuration;
 using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Extensions;
 using Sitecore.Pathfinder.IO;
+using Sitecore.Pathfinder.Languages;
 using Sitecore.Pathfinder.Parsing;
 using Sitecore.Pathfinder.Projects;
 using Sitecore.Pathfinder.Querying;
+using Sitecore.Pathfinder.Rules;
 using Sitecore.Pathfinder.Snapshots;
+using Sitecore.Pathfinder.Xml.XPath;
 
 namespace Sitecore.Pathfinder.Helpers
 {
@@ -34,6 +38,9 @@ namespace Sitecore.Pathfinder.Helpers
         public IFileSystemService FileSystem { get; private set; }
 
         [NotNull]
+        public ILanguageService LanguageService { get; private set; }
+
+        [NotNull]
         public IParseService ParseService { get; private set; }
 
         [NotNull]
@@ -42,17 +49,21 @@ namespace Sitecore.Pathfinder.Helpers
         [NotNull]
         public IQueryService QueryService { get; set; }
 
+        public IRuleService RuleService { get; set; }
+
         [NotNull]
         public ISnapshotService SnapshotService { get; set; }
+
+        public IXPathService XPathService { get; set; }
 
         [NotNull]
         public ITraceService Trace { get; private set; }
 
         public void Start(string projectDirectory, [CanBeNull] Action mock = null)
         {
-            var toolsDirectory = Path.Combine(projectDirectory, "sitecore.tools");
+            var toolsDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
 
-            var app = new Startup().WithToolsDirectory(toolsDirectory).WithProjectDirectory(projectDirectory).WithWebsiteAssemblyResolver().Start();
+            var app = new Startup().WithToolsDirectory(toolsDirectory).WithProjectDirectory(projectDirectory).Start();
             if (app == null)
             {
                 throw new ConfigurationException("Oh no, nothing works!");
@@ -71,6 +82,9 @@ namespace Sitecore.Pathfinder.Helpers
             SnapshotService = CompositionService.Resolve<ISnapshotService>();
             CheckerService = CompositionService.Resolve<ICheckerService>();
             QueryService = CompositionService.Resolve<IQueryService>();
+            LanguageService = CompositionService.Resolve<ILanguageService>();
+            RuleService = CompositionService.Resolve<IRuleService>();
+            XPathService = CompositionService.Resolve<IXPathService>();
         }
     }
 }

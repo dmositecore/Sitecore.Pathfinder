@@ -12,8 +12,7 @@ using Sitecore.Pathfinder.Snapshots;
 
 namespace Sitecore.Pathfinder.Languages.Json
 {
-    [Export]
-    [PartCreationPolicy(CreationPolicy.NonShared)]
+    [Export, PartCreationPolicy(CreationPolicy.NonShared)]
     public class JsonTextSnapshot : TextSnapshot
     {
         [CanBeNull]
@@ -24,14 +23,13 @@ namespace Sitecore.Pathfinder.Languages.Json
         {
         }
 
-        public override ITextNode Root => _root ?? (_root = (RootToken != null ? ParseDirectives(ParseContext, Parse()) : TextNode.Empty));
-
-        [CanBeNull]
-        [ItemNotNull]
-        protected JToken RootToken { get; private set; }
+        public override ITextNode Root => _root ?? (_root = RootToken != null ? ParseDirectives(ParseContext, Parse()) : TextNode.Empty);
 
         [NotNull]
         protected SnapshotParseContext ParseContext { get; private set; }
+
+        [CanBeNull, ItemNotNull]
+        protected JToken RootToken { get; private set; }
 
         public override void SaveChanges()
         {
@@ -113,9 +111,9 @@ namespace Sitecore.Pathfinder.Languages.Json
         }
 
         [NotNull]
-        protected virtual ITextNode Parse([NotNull] string name, [NotNull] [ItemNotNull] JObject jobject, [CanBeNull] JsonTextNode parent)
+        protected virtual ITextNode Parse([NotNull] string name, [NotNull, ItemNotNull]  JObject jobject, [CanBeNull] JsonTextNode parent)
         {
-            var textNodes = (parent?.ChildNodes as ICollection<ITextNode>);
+            var textNodes = parent?.ChildNodes as ICollection<ITextNode>;
 
             var treeNode = new JsonTextNode(this, name, jobject);
             textNodes?.Add(treeNode);

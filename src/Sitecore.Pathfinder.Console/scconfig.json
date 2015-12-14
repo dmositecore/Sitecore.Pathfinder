@@ -1,7 +1,7 @@
 {
     "website-directory": "",
     "data-folder-directory": "",
-    "hostname": "",
+    "host-name": "",
 
     // default database name (master, core or web)
     "database": "master",
@@ -9,27 +9,36 @@
     // project configuration file
     "project": "scconfig.json",
 
-    // ======
-    // TASKS
-    // ======
+    // mapping between project files and website files and items
+    "project-website-mappings": {
+        // files to copy to website
+        "content-files": ".js, .map, .css, .config, .htm, .ashx, .asmx, .asax, .eot, .svg, .ttf, .woff, .woff2, .less, .php, .ico",
+
+        // comma separated list of files and directories to ignore
+        "ignore-directories": ".vscode, sitecore.filetemplates, sitecore.project, sitecore.tools, node_modules, roslyn, includes",
+        "ignore-filenames": "scc.cmd, project.json, readme.md, web.config",
+
+        // default file search pattern
+        "search-pattern": "*",
+        
+        // fields to exclude when importing a website
+        "excluded-fields": "__Created, __Created by, __Owner, __Revision, __Updated, __Updated by, Blob, Originator",
+
+        // mapping items and files to website when building a project
+        "project-to-website": {
+        },
+
+        // mapping items and files to project when importing a website
+        "website-to-project": {
+        }
+    },
 
     "build-project": {
         // default build pipeline
         "tasks": "help",
 
-        // files to copy to website
-        "content-files": ".js .css .config .htm .ashx .asmx",
-
-        // mapping of files between local path and server path and item path
-        "files": {
-        },
-
         // if force-update is true, media will always be uploaded and files always copied during emitting
         "force-update": false,
-
-        // comma separated list of files and directories to ignore
-        "ignore-directories": ".vscode, sitecore.filetemplates, sitecore.project, sitecore.tools, node_modules, roslyn, includes",
-        "ignore-filenames": "scc.cmd, project.json, readme.md, web.config",
 
         "media": {
             "template": {
@@ -50,8 +59,19 @@
             }
         },
 
-        // default search pattern
-        "search-pattern": "*"
+        "schema": {
+            "Item-attributes": "Name, Id, Database, Icon, Template, IsEmittable, IsExternalReference, Layout.HtmlFile, Template.CreateFromFields, Template.Id, Template.Icon, Template.BaseTemplates, Template.ShortHelp, Template.LongHelp",
+            "Item-childnodes": "Fields, Children, Template",
+            "Fields-childnodes": "Field, Unversioned, Versioned, Layout", 
+            "Field-attributes": "Name, Value, Language, Version, Field.Type, Field.SortOrder, Field.Sharing, Field.Source, Field.ShortHelp, Field.LongHelp",
+            "Template-attributes": "Name, Id, Database, Icon, IsEmittable, IsExternalReference, ShortHelp, LongHelp, BaseTemplates, Layout.HtmlFile",
+            "Template-childnodes": "Section, Sections",
+            "TemplateSection-attributes": "Name, Id, Icon",
+            "TemplateSection-childnodes": "Field",
+            "TemplateField-attributes": "Name, Id, Type, Sharing, Source, ShortHelp, LongHelp, SortOrder, StandardValue",
+            "TemplateField-childnodes": "",
+            "Children-childnodes": "Item, Template"
+        }
     },
 
     "check-project": {
@@ -80,10 +100,6 @@
         "check-bin-file-version": false,
         "install-url": "/sitecore/shell/client/Applications/Pathfinder/InstallPackage",
         "uninstall-directory": "../.uninstall"
-    },
-
-    "import-website": {
-        "exclude-fields": "__Created, __Created by, __Owner, __Revision, __Updated, __Updated by, Blob"
     },
 
     "generate-code": {
@@ -122,19 +138,6 @@
     },
 
     "reset-website": {
-        "master": {
-        },
-        "core": {
-        },
-        "files": {
-        }
-    },
-
-    "run-unittests": {
-        "local-test-directory": "Tests",
-
-        "web-test-runner-url": "/sitecore/shell/client/Applications/Pathfinder/WebTestRunner",
-        "web-test-runner-name": "NUnit"
     },
 
     "sync-website": {
@@ -192,6 +195,11 @@
     "write-exports": {
         "filename": "sitecore.project/exports.xml",
         "fields-to-write": "Place Holders"
+    },
+
+    "write-serialization": {
+        "directory": "sitecore.project/serialization",
+        "flat": false
     },
 
     "write-website-exports": {
@@ -304,8 +312,10 @@
     },
 
     "messages": {
-        // comma separated list of message numbers to ignore
-        "disabled": ""
+        "system-0": {
+            // comma separated list of message numbers to ignore
+            "disabled": ""
+        }
     },
 
     "scripts": {

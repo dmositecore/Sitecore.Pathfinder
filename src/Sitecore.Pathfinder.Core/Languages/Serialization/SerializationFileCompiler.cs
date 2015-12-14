@@ -14,6 +14,10 @@ namespace Sitecore.Pathfinder.Languages.Serialization
 {
     public class SerializationFileCompiler : CompilerBase
     {
+        public SerializationFileCompiler() : base(1000)
+        {
+        }
+
         public override bool CanCompile(ICompileContext context, IProjectItem projectItem)
         {
             return projectItem is SerializationFile;
@@ -22,10 +26,7 @@ namespace Sitecore.Pathfinder.Languages.Serialization
         public override void Compile(ICompileContext context, IProjectItem projectItem)
         {
             var serializationFile = projectItem as SerializationFile;
-            if (serializationFile == null)
-            {
-                return;
-            }
+            Assert.Cast(serializationFile, nameof(serializationFile));
 
             var textDocument = (ITextSnapshot)serializationFile.Snapshots.First();
             var rootTextNode = textDocument.Root;
@@ -38,7 +39,7 @@ namespace Sitecore.Pathfinder.Languages.Serialization
             var lines = textDocument.SourceFile.ReadAsLines();
             var itemBuilder = context.Factory.ItemBuilder();
 
-            ParseItem(context, textDocument, itemBuilder, lines, 0);
+            ParseItem(context, textDocument, itemBuilder, lines);
 
             var item = itemBuilder.Build(serializationFile.Project, rootTextNode);
             item.IsEmittable = false;
@@ -146,11 +147,11 @@ namespace Sitecore.Pathfinder.Languages.Serialization
             return lines.Length;
         }
 
-        protected virtual int ParseItem([NotNull] ICompileContext context, [NotNull] ITextSnapshot textSnapshot, [NotNull] ItemBuilder itemBuilder, [NotNull] [ItemNotNull] string[] lines, int lineNumber)
+        protected virtual int ParseItem([NotNull] ICompileContext context, [NotNull] ITextSnapshot textSnapshot, [NotNull] ItemBuilder itemBuilder, [NotNull] [ItemNotNull] string[] lines)
         {
             var languageVersionBuilder = new LanguageVersionBuilder();
 
-            for (var n = lineNumber; n < lines.Length; n++)
+            for (var n = 0; n < lines.Length; n++)
             {
                 var line = lines[n];
                 if (string.IsNullOrEmpty(line))

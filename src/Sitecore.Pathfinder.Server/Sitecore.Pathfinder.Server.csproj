@@ -91,8 +91,7 @@
       <HintPath>..\..\lib\Sitecore\Sitecore.Kernel.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Sitecore.Mvc, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="Sitecore.Mvc">
       <HintPath>..\..\lib\Sitecore\Sitecore.Mvc.dll</HintPath>
       <Private>False</Private>
     </Reference>
@@ -159,6 +158,7 @@
     <Content Include="sitecore\shell\client\Applications\Pathfinder\PackageSources.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controllers\PathfinderContentEditorController.cs" />
     <Compile Include="Controllers\PathfinderInstalledController.cs" />
     <Compile Include="Controllers\PathfinderInstallPackageController.cs" />
     <Compile Include="Controllers\PathfinderPackageController.cs" />
@@ -181,27 +181,43 @@
     <Compile Include="Emitters\Items\TemplateEmitter.cs" />
     <Compile Include="Extensions\ControllerExtensions.cs" />
     <Compile Include="Extensions\DatabaseExtensions.cs" />
+    <Compile Include="Importing\ItemImporters\IItemImporterService.cs" />
+    <Compile Include="Importing\ItemImporters\ItemImporterService.cs" />
     <Compile Include="Jobs\BackgroundJob.cs" />
     <Compile Include="Mvc\Presentation\HtmlTemplateRenderer.cs" />
     <Compile Include="Mvc\Response\GetRenderer\GetHtmlTemplateRenderer.cs" />
     <Compile Include="Packages\PackageService.cs" />
     <Compile Include="Packages\Packages\NugetPackage.cs" />
     <Compile Include="Packages\Packages\PackageBase.cs" />
+    <Compile Include="Pipelines\Loader\InitializeSerializingDataProvider.cs" />
     <Compile Include="Pipelines\Loader\MapRoutes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Serializing\SerializingDataProviderService.cs" />
     <Compile Include="ServerConstants.cs" />
+    <Compile Include="Serializing\SerializingDataProvider.cs" />
+    <Compile Include="Serializing\WebsiteSerializer.cs" />
     <Compile Include="WebApi\ImportWebsite.cs" />
-    <Compile Include="WebApi\SynchronizeWebsite.cs" />
-    <Compile Include="WebApi\SynchronizeWebsites\ContentXmlSynchronizer.cs" />
+    <Compile Include="Importing\FieldImporters\FieldValueImporterBase.cs" />
+    <Compile Include="Importing\FieldImporters\IdFieldValueImporter.cs" />
+    <Compile Include="Importing\FieldImporters\IFieldValueImporter.cs" />
+    <Compile Include="Importing\FieldImporters\ImageFieldValueImporter.cs" />
+    <Compile Include="Importing\FieldImporters\LayoutFieldValueImporter.cs" />
+    <Compile Include="Importing\FieldImporters\LinkFieldValueImporter.cs" />
     <Compile Include="WebApi\SynchronizeWebsites\ISynchronizer.cs" />
+    <Compile Include="WebApi\SynchronizeWebsites\SynchronizeWebsite.cs" />
+    <Compile Include="WebApi\SynchronizeWebsites\ContentXmlSynchronizer.cs" />
     <Compile Include="WebApi\SynchronizeWebsites\JsonLayoutSchemaSynchronizer.cs" />
     <Compile Include="WebApi\SynchronizeWebsites\XsdLayoutSchemaSynchronizer.cs" />
     <Compile Include="WebApi\SynchronizeWebsites\XsdContentSchemaSynchronizer.cs" />
     <Compile Include="WebApi\InstallProject.cs" />
     <Compile Include="WebApi\IWebApi.cs" />
     <Compile Include="WebApi\ResetWebsite.cs" />
+    <Compile Include="WebApi\TroubleshootWebsites\1000 - RebuildClassicIndexesTroubleshooter.cs" />
+    <Compile Include="WebApi\TroubleshootWebsites\2000 - RepublishMasterDatabaseTroubleshooter.cs" />
+    <Compile Include="WebApi\TroubleshootWebsites\3000 - RebuildLinkDatabaseTroubleshooter.cs" />
+    <Compile Include="WebApi\UpdateProjectWebsiteMappings.cs" />
     <Compile Include="WebApi\WriteWebsiteExports.cs" />
-    <Compile Include="WebApi\TroubleshootWebsite.cs" />
+    <Compile Include="WebApi\TroubleshootWebsites\TroubleshootWebsite.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config">
@@ -224,6 +240,9 @@
     <Content Include="sitecore\shell\client\Applications\Pathfinder\web.config" />
     <Content Include="sitecore\shell\client\Applications\Pathfinder\Package.cshtml" />
     <Content Include="Readme.md" />
+    <Content Include="sitecore\shell\client\Applications\Pathfinder\ContentEditors\ContentEditorShell.cshtml" />
+    <Content Include="sitecore\shell\client\Applications\Pathfinder\ContentEditors\ContentEditorTree.cshtml" />
+    <Content Include="sitecore\shell\client\Applications\Pathfinder\ContentEditors\ContentEditorContent.cshtml" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

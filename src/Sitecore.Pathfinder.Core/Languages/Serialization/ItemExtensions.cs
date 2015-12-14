@@ -5,13 +5,22 @@ using System.IO;
 using System.Linq;
 using Sitecore.Pathfinder.Diagnostics;
 using Sitecore.Pathfinder.Extensions;
+using Sitecore.Pathfinder.Projects;
 using Sitecore.Pathfinder.Projects.Items;
 
 namespace Sitecore.Pathfinder.Languages.Serialization
 {
+    [Flags]
+    public enum WriteAsSerializationOptions
+    {
+        None = 0,
+
+        WriteCompiledFieldValues = 1
+    }
+
     public static class ItemExtensions
     {
-        public static void WriteAsSerialization([NotNull] this Item item, [NotNull] TextWriter writer)
+        public static void WriteAsSerialization([NotNull] this Item item, [NotNull] TextWriter writer, WriteAsSerializationOptions options = WriteAsSerializationOptions.None)
         {
             var parentId = string.Empty;
 
@@ -19,7 +28,7 @@ namespace Sitecore.Pathfinder.Languages.Serialization
             if (n >= 0)
             {
                 var parentPath = item.ItemIdOrPath.Left(n);
-                var parent = item.Project.FindQualifiedItem(parentPath);
+                var parent = item.Project.FindQualifiedItem<IProjectItem>(parentPath);
 
                 if (parent != null)
                 {
@@ -44,13 +53,16 @@ namespace Sitecore.Pathfinder.Languages.Serialization
 
             foreach (var field in sharedFields)
             {
+                var value = options.HasFlag(WriteAsSerializationOptions.WriteCompiledFieldValues) ? field.CompiledValue : field.Value;
+
                 writer.WriteLine("----field----");
                 writer.WriteLine("field: " + (field.FieldId == Guid.Empty ? string.Empty : field.FieldId.Format()));
                 writer.WriteLine("name: " + field.FieldName);
                 writer.WriteLine("key: " + field.FieldName.ToLowerInvariant());
-                writer.WriteLine("content-length: " + field.Value.Length);
+                writer.WriteLine("content-length: " + value.Length);
                 writer.WriteLine();
-                writer.WriteLine(field.Value);
+
+                writer.WriteLine(value);
             }
 
             foreach (var language in versionedFields.Select(f => f.Language).Distinct().OrderBy(v => v))
@@ -65,13 +77,16 @@ namespace Sitecore.Pathfinder.Languages.Serialization
 
                     foreach (var field in item.Fields.Where(f => f.Language == language & f.Version == version))
                     {
+                        var value = options.HasFlag(WriteAsSerializationOptions.WriteCompiledFieldValues) ? field.CompiledValue : field.Value;
+
                         writer.WriteLine("----field----");
                         writer.WriteLine("field: " + (field.FieldId == Guid.Empty ? string.Empty : field.FieldId.Format()));
                         writer.WriteLine("name: " + field.FieldName);
                         writer.WriteLine("key: " + field.FieldName.ToLowerInvariant());
-                        writer.WriteLine("content-length: " + field.Value.Length);
+                        writer.WriteLine("content-length: " + value.Length);
                         writer.WriteLine();
-                        writer.WriteLine(field.Value);
+
+                        writer.WriteLine(value);
                     }
                 }
             }

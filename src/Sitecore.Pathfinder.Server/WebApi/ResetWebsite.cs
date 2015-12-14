@@ -1,39 +1,101 @@
 ﻿// © 2015 Sitecore Corporation A/S. All rights reserved.
 
-using System;
+using System.ComponentModel.Composition;
 using System.IO;
 using System.Web.Mvc;
-using Microsoft.Framework.ConfigurationModel;
 using Sitecore.Configuration;
+using Sitecore.Data.Items;
 using Sitecore.IO;
 using Sitecore.Pathfinder.Extensions;
 using Sitecore.Pathfinder.IO;
+using Sitecore.Pathfinder.IO.PathMappers;
+using Sitecore.Pathfinder.Serializing;
 
 namespace Sitecore.Pathfinder.WebApi
 {
+    [Export(nameof(ResetWebsite), typeof(IWebApi))]
     public class ResetWebsite : IWebApi
     {
+        [Diagnostics.NotNull, Import]
+        public IPathMapperService PathMapper { get; private set; }
+
         public ActionResult Execute(IAppService app)
         {
-            foreach (var pair in app.Configuration.GetSubKeys("reset-website"))
+            SerializingDataProviderService.Disabled = true;
+            try
             {
-                if (pair.Key == "website")
+                foreach (var mapper in PathMapper.WebsiteItemPathToProjectDirectories)
                 {
-                    DeleteFiles(app.Configuration, "website", FileUtil.MapPath("/"));
+                    DeleteItems(mapper);
                 }
-                else if (pair.Key == "data")
+
+                foreach (var mapper in PathMapper.WebsiteDirectoryToProjectDirectories)
                 {
-                    DeleteFiles(app.Configuration, "data", FileUtil.MapPath(Settings.DataFolder));
+                    DeleteFiles(app.ProjectDirectory, mapper);
                 }
-                else
+
+                var fileSystem = app.CompositionService.Resolve<IFileSystemService>();
+
+                foreach (var pair in app.Configuration.GetSubKeys("reset-website"))
                 {
-                    DeleteItems(app.Configuration, pair.Key);
+                    var key = "reset-website:" + pair.Key;
+
+                    ResetItems(app, key);
+                    ResetFiles(app, fileSystem, key);
                 }
+            }
+            finally
+            {
+                SerializingDataProviderService.Disabled = false;
             }
 
             return null;
         }
 
+        protected virtual void DeleteFiles([Diagnostics.NotNull] string projectDirectory, [Diagnostics.NotNull] WebsiteDirectoryToProjectDirectoryMapper mapper)
+        {
+            DeleteFiles(mapper, FileUtil.MapPath("/"), FileUtil.MapPath(PathHelper.NormalizeItemPath(mapper.WebsiteDirectory)));
+        }
+
+        protected virtual void DeleteFiles([Diagnostics.NotNull] WebsiteDirectoryToProjectDirectoryMapper mapper, [Diagnostics.NotNull] string websiteDirectory, [Diagnostics.NotNull] string directoryOrFileName)
+        {
+            var websiteDirectoryOrFileName = '\\' + PathHelper.UnmapPath(websiteDirectory, directoryOrFileName);
+
+            if (Directory.Exists(directoryOrFileName))
+            {
+                string projectFileName;
+                if (mapper.TryGetProjectFileName(websiteDirectoryOrFileName, out projectFileName))
+                {
+                    Directory.Delete(directoryOrFileName, true);
+                }
+            }
+
+            if (File.Exists(directoryOrFileName))
+            {
+                string projectFileName;
+                if (mapper.TryGetProjectFileName(websiteDirectoryOrFileName, out projectFileName))
+                {
+                    File.Delete(directoryOrFileName);
+                }
+            }
+
+            if (!Directory.Exists(directoryOrFileName))
+            {
+                return;
+            }
+
+            foreach (var fileName in Directory.GetFiles(directoryOrFileName, "*", SearchOption.TopDirectoryOnly))
+            {
+                DeleteFiles(mapper, websiteDirectory, fileName);
+            }
+
+            foreach (var directory in Directory.GetDirectories(directoryOrFileName, "*", SearchOption.TopDirectoryOnly))
+            {
+                DeleteFiles(mapper, websiteDirectory, directory);
+            }
+        }
+
+        /*
         protected virtual void DeleteFiles([Diagnostics.NotNull] IConfiguration configuration, [Diagnostics.NotNull] string area, [Diagnostics.NotNull] string baseDirectory)
         {
             foreach (var pair in configuration.GetSubKeys("reset-website:" + area))
@@ -100,6 +162,81 @@ namespace Sitecore.Pathfinder.WebApi
                     item.Recycle();
                 }
             }
+        }
+
+        */
+
+        protected virtual void DeleteItems([Diagnostics.NotNull] WebsiteItemPathToProjectDirectoryMapper mapper)
+        {
+            var database = Factory.GetDatabase(mapper.DatabaseName);
+            var item = database.GetItem(mapper.ItemPath);
+            if (item == null)
+            {
+                return;
+            }
+
+            DeleteItems(mapper, item);
+        }
+
+        protected virtual void DeleteItems([Diagnostics.NotNull] WebsiteItemPathToProjectDirectoryMapper mapper, [Diagnostics.NotNull] Item item)
+        {
+            string projectFileName;
+            string format;
+            if (mapper.TryGetProjectFileName(item.Paths.Path, item.TemplateName, out projectFileName, out format))
+            {
+                item.Recycle();
+                return;
+            }
+
+            foreach (Item child in item.Children)
+            {
+                DeleteItems(mapper, child);
+            }
+        }
+
+        private void ResetFiles([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] IFileSystemService fileSystem, [Diagnostics.NotNull] string key)
+        {
+            var filePath = app.Configuration.GetString(key + ":delete-file-name");
+            if (string.IsNullOrEmpty(filePath))
+            {
+                return;
+            }
+
+            var fileName = FileUtil.MapPath(PathHelper.NormalizeItemPath(filePath).Trim('/'));
+
+            if (fileSystem.FileExists(fileName))
+            {
+                fileSystem.DeleteFile(fileName);
+            }
+
+            if (fileSystem.DirectoryExists(fileName))
+            {
+                fileSystem.DeleteDirectory(fileName);
+            }
+        }
+
+        private void ResetItems([Diagnostics.NotNull] IAppService app, [Diagnostics.NotNull] string key)
+        {
+            var itemPath = app.Configuration.GetString(key + ":delete-item-path");
+            if (string.IsNullOrEmpty(itemPath))
+            {
+                return;
+            }
+
+            var databaseName = app.Configuration.GetString(key + ":database", "master");
+            if (string.IsNullOrEmpty(databaseName))
+            {
+                return;
+            }
+
+            var database = Factory.GetDatabase(databaseName);
+            var item = database.GetItem(itemPath);
+            if (item == null)
+            {
+                return;
+            }
+
+            item.Recycle();
         }
     }
 }
