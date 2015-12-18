@@ -194,19 +194,22 @@
       <Link>files\extensions\checkers\Templates\UseIdInsteadOfPathChecker.cs</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Compile Include="Building\Assembling\WriteSerialization.cs" />
-    <Compile Include="Building\Commands\ImportWebsite.cs" />
-    <Compile Include="Building\Commands\ListRules.cs" />
-    <Compile Include="Building\Maintaining\UpdateDataProvider.cs" />
-    <Compile Include="Building\Scripting\RunScript.cs" />
+    <Compile Include="Building\Addins\InstallAddins.cs" />
+    <Compile Include="Building\Addins\ListAddins.cs" />
     <Compile Include="Building\Addins\UpdateAddins.cs" />
+    <Compile Include="Building\Assembling\WriteExports.cs" />
+    <Compile Include="Building\Assembling\WriteSerialization.cs" />
+    <Compile Include="Building\Checking\CheckProject.cs" />
     <Compile Include="Building\Codegen\GenerateCode.cs" />
+    <Compile Include="Building\Commands\ImportWebsite.cs" />
     <Compile Include="Building\Commands\ListFiles.cs" />
     <Compile Include="Building\Commands\ListItems.cs" />
     <Compile Include="Building\Commands\ListProject.cs" />
+    <Compile Include="Building\Commands\ListRules.cs" />
+    <Compile Include="Building\Maintaining\UpdateDataProvider.cs" />
+    <Compile Include="Building\Scripting\RunScript.cs" />
     <Compile Include="Building\Maintaining\TroubleshootWebsite.cs" />
     <Compile Include="Building\Deploying\CopyPackage.cs" />
-    <Compile Include="Building\Assembling\WriteExports.cs" />
     <Compile Include="Building\Deploying\InstallPackage.cs" />
     <Compile Include="Building\Deploying\InstallProject.cs" />
     <Compile Include="Building\Deploying\PublishDatabase.cs" />
@@ -215,8 +218,6 @@
     <Compile Include="Building\Initializing\BeforeBuilds\BeforeBuildPipeline.cs" />
     <Compile Include="Building\Initializing\Help.cs" />
     <Compile Include="Building\Deploying\CopyDependencies.cs" />
-    <Compile Include="Building\Addins\InstallAddins.cs" />
-    <Compile Include="Building\Addins\ListAddins.cs" />
     <Compile Include="Building\Initializing\NewProject.cs" />
     <Compile Include="Building\Initializing\InitAtom.cs" />
     <Compile Include="Building\Initializing\InitVisualStudio.cs" />
@@ -229,13 +230,28 @@
     <Compile Include="Building\Querying\FindReferences.cs" />
     <Compile Include="Building\Querying\FindUsages.cs" />
     <Compile Include="Building\Packaging\PackNupkgPackage.cs" />
-    <Compile Include="Building\Checking\CheckProject.cs" />
     <Compile Include="Building\Build.cs" />
     <Compile Include="Building\Querying\QueryBuildTaskBase.cs" />
     <Compile Include="Building\Refactoring\Rename.cs" />
     <Compile Include="Building\Testing\ValidateWebsite.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenteditor.css">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenteditor.css</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\img\document_text.png">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\img\document_text.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\img\folder.png">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\img\folder.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\img\folder_document2.png">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\img\folder_document2.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\packageDefaultIcon-50x50.png">
       <Link>files\website\sitecore\shell\client\Applications\Pathfinder\packageDefaultIcon-50x50.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -246,6 +262,24 @@
     </Content>
     <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\PackageSources.txt">
       <Link>files\website\sitecore\shell\client\Applications\Pathfinder\PackageSources.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Sitecore.Pathfinder.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Newtonsoft.Json.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Microsoft.CodeAnalysis.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Rainbow.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Mono.TextTemplating.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="licenses\Unicorn.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="files\project\sitecore.filetemplates\json\item.master.content.json">
@@ -268,6 +302,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="nuget.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenteditor.cshtml">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenteditor.cshtml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenttree.cshtml">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\ContentEditors\contenttree.cshtml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Sitecore.Pathfinder.Server\sitecore\shell\client\Applications\Pathfinder\ContentEditors\shell.cshtml">
+      <Link>files\website\sitecore\shell\client\Applications\Pathfinder\ContentEditors\shell.cshtml</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="files\editors\Atom.zip">
@@ -554,6 +600,10 @@
     <ProjectReference Include="..\Features\Sitecore.Pathfinder.HtmlFile\Sitecore.Pathfinder.HtmlFile.csproj">
       <Project>{7287e9e2-cab5-4de4-87b5-237b65020dc4}</Project>
       <Name>Sitecore.Pathfinder.HtmlFile</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Features\Sitecore.Pathfinder.Markdown\Sitecore.Pathfinder.Markdown.csproj">
+      <Project>{37d4ea12-aeb1-4bfa-a5c8-76185f68dd25}</Project>
+      <Name>Sitecore.Pathfinder.Markdown</Name>
     </ProjectReference>
     <ProjectReference Include="..\Features\Sitecore.Pathfinder.T4\Sitecore.Pathfinder.T4.csproj">
       <Project>{bc0ec297-60e6-4d8f-a846-e1da920cfc26}</Project>

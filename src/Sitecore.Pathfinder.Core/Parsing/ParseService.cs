@@ -74,8 +74,11 @@ namespace Sitecore.Pathfinder.Parsing
                 ["Database"] = project.Options.DatabaseName,
                 ["FileNameWithoutExtensions"] = fileNameWithoutExtensions,
                 ["FileName"] = fileName,
-                ["DirectoryName"] = directoryName
+                ["DirectoryName"] = directoryName,
+                ["ProjectDirectory"] = project.Options.ProjectDirectory
             };
+
+            tokens.AddRange(project.Options.Tokens);
 
             var snapshotParseContext = new SnapshotParseContext(SnapshotService, tokens, new Dictionary<string, List<ITextNode>>());
             var snapshot = SnapshotService.LoadSnapshot(snapshotParseContext, sourceFile);
@@ -101,7 +104,7 @@ namespace Sitecore.Pathfinder.Parsing
 
             if (!parsed)
             {
-                parseContext.Trace.TraceWarning(Msg.P1024, "No parser found for file. If the file is a content file, add the file extension to the 'build-project:content-files' setting", sourceFile);
+                parseContext.Trace.TraceWarning(Msg.P1024, "No parser found for file. If the file is a content file, add the file extension to the 'project-website-mappings:content-files' setting", sourceFile);
             }
         }
 
